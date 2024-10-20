@@ -1,4 +1,4 @@
-# Plastic Educator Back-end Server
+# Livepeer Image Helper Back-end Server
 
 This is the backend service that coordinates the websocket connections between the client and the AI services.
 
