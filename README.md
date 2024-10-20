@@ -5,5 +5,5 @@ This is the backend service that coordinates the websocket connections between t
 ## Tools Used
 
 1. [Livepeer](#livepeer) Text-to-Image
-1. [OpenAI](#openai) ChatGPT
-
+2. [OpenAI](#openai) ChatGPT
+3. [StoryProtocol](#storyprotocol) Story Protocol
