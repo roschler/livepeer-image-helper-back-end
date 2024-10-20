@@ -1,0 +1,12 @@
+Author: Authority_Null [FG]
+
+With flux dev i've noticed lower steps makes the images much flatter
+but higher steps are needed for images where the main focus is text, like a logo
+
+Authority_Null [FG] Titan — Today at 12:41 AM
+I really like the SG161222/RealVisXL_V4.0_Lightning model for quality
+and black-forest-labs/FLUX.1-dev for text generation within the image
+
+24-28 steps and 3.5 guidance_scale for flux dev is a good baseline, but for text specific images, like logos, you’ll want to bump up steps to 35 at least.
+
+Often users don’t understand that to add text they should add specifics to the prompt like “bold text written in sharpie, text “words””. Instead they’ll write something like “a dog saying woof” and flux won’t figure that out, so any way to help the users with that would be good

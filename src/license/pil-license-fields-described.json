@@ -1,0 +1,155 @@
+[
+  {
+    "transferable": {
+      "title": "transferable",
+      "description": "Determines if the license for the IP asset can be transferred to another party.",
+      "usage": "If true, the license can be sold or transferred. If false, the license is restricted to the original holder.",
+      "example": "Set this to false for limited personal-use licenses where you don’t want the IP to be passed to others.",
+      "data_type": "boolean"
+    }
+  },
+  {
+    "royaltyPolicy": {
+      "title": "royaltyPolicy",
+      "description": "The string of the smart contract governing the royalty distribution policy.",
+      "usage": "Specify the royalty contract that manages how revenue generated from the IP or derivatives will be shared.",
+      "example": "Set the string to a custom contract that distributes royalties to multiple stakeholders.",
+      "data_type": "string"
+    }
+  },
+  {
+    "mintingFee": {
+      "title": "mintingFee",
+      "description": "The fee required to mint the license.",
+      "usage": "Define the cost of creating a new license on-chain.",
+      "example": "Use this to charge users a one-time fee for minting the license, providing a monetization mechanism for IP assets.",
+      "data_type": "number"
+    }
+  },
+  {
+    "expiration": {
+      "title": "expiration",
+      "description": "The time at which the license will expire.",
+      "usage": "Specify an expiration time in Unix timestamps. After this time, the license will no longer be valid.",
+      "example": "If you want to offer time-limited licenses (e.g., for a year), you would set the expiration here.",
+      "data_type": "number"
+    }
+  },
+  {
+    "commercialUse": {
+      "title": "commercialUse",
+      "description": "Determines whether the licensee can use the IP for commercial purposes.",
+      "usage": "Set this to true to allow the licensee to generate revenue from the IP. Otherwise, set it to false to restrict the IP to non-commercial use.",
+      "example": "Enable this for assets that can be monetized (e.g., selling derivative works), but disable it if the IP is only meant for personal or academic use.",
+      "data_type": "boolean"
+    }
+  },
+  {
+    "commercialAttribution": {
+      "title": "commercialAttribution",
+      "description": "Specifies whether attribution is required for commercial use.",
+      "usage": "Set to true if the licensee must credit the original creator when using the IP for commercial purposes.",
+      "example": "Useful in cases where you want users to credit you for works that they monetize.",
+      "data_type": "boolean"
+    }
+  },
+  {
+    "commercializerChecker": {
+      "title": "commercializerChecker",
+      "description": "The string of the smart contract that checks if a user is authorized to commercialize the IP.",
+      "usage": "Provide a contract that validates if the user is allowed to commercially use the IP.",
+      "example": "Useful when you want to restrict commercial rights to certain entities or users, such as pre-approved vendors.",
+      "data_type": "string"
+    }
+  },
+  {
+    "commercializerCheckerData": {
+      "title": "commercializerCheckerData",
+      "description": "Additional data passed to the commercializer checker contract.",
+      "usage": "Input extra information required by the commercializer checker contract to determine commercial use eligibility.",
+      "example": "This field could be used to add metadata or criteria for commercial use validation.",
+      "data_type": "string"
+    }
+  },
+  {
+    "commercialRevShare": {
+      "title": "commercialRevShare",
+      "description": "Defines the percentage of revenue that must be shared with the IP licensor from commercial use.",
+      "usage": "Set the percentage (e.g., 10% as 10000000 for a 10% revenue share) that goes to the original creator from any profits.",
+      "example": "Use this for a revenue-sharing model where the creator takes a portion of the proceeds from the licensee’s commercial activities.",
+      "data_type": "number"
+    }
+  },
+  {
+    "commercialRevCelling": {
+      "title": "commercialRevCelling",
+      "description": "Specifies the maximum amount of revenue that the licensee can earn from commercial use.",
+      "usage": "Set a cap on the revenue that the licensee can generate, beyond which any excess could either be remitted or restricted.",
+      "example": "Useful for controlling how much profit others can make from monetizing your IP.",
+      "data_type": "number"
+    }
+  },
+  {
+    "derivativesAllowed": {
+      "title": "derivativesAllowed",
+      "description": "Controls whether derivative works (remixes, adaptations) can be created from the IP.",
+      "usage": "Set this to true to allow users to create derivative works, or false to prevent modifications.",
+      "example": "Enable this for assets that encourage remixing or adaptations.",
+      "data_type": "boolean"
+    }
+  },
+  {
+    "derivativesAttribution": {
+      "title": "derivativesAttribution",
+      "description": "Requires attribution for derivative works.",
+      "usage": "Set this to true to mandate that derivative works credit the original IP creator.",
+      "example": "Ensures that the original author gets recognition in derived versions.",
+      "data_type": "boolean"
+    }
+  },
+  {
+    "derivativesApproval": {
+      "title": "derivativesApproval",
+      "description": "Requires approval from the original licensor before a derivative work can be used or published.",
+      "usage": "Set this to true if you want the right to approve derivative works before release.",
+      "example": "Use this for stricter control, allowing the licensor to vet adaptations before they are published.",
+      "data_type": "boolean"
+    }
+  },
+  {
+    "derivativesReciprocal": {
+      "title": "derivativesReciprocal",
+      "description": "Specifies whether derivatives must have the same license terms as the original work.",
+      "usage": "If true, any derivatives must follow the same license terms as the original asset.",
+      "example": "Useful if you want adaptations to stay within an open or public domain model.",
+      "data_type": "boolean"
+    }
+  },
+  {
+    "derivativeRevCelling": {
+      "title": "derivativeRevCelling",
+      "description": "Sets a revenue ceiling on derivatives created from the original work.",
+      "usage": "Place a limit on the revenue that derivative works can generate.",
+      "example": "Useful for controlling how much profit others can make from remixing your IP.",
+      "data_type": "number"
+    }
+  },
+  {
+    "currency": {
+      "title": "currency",
+      "description": "Defines the currency (ERC20 token) used for payments related to the license.",
+      "usage": "Specify the token (such as DAI or USDC) that will be used for licensing fees and revenue-sharing.",
+      "example": "Set to a stablecoin to ensure predictable payments.",
+      "data_type": "string"
+    }
+  },
+  {
+    "uri": {
+      "title": "uri",
+      "description": "A link to off-chain data related to the license terms.",
+      "usage": "Provide a URI that points to detailed off-chain license terms or related metadata.",
+      "example": "Store additional licensing information or legal documents.",
+      "data_type": "string"
+    }
+  }
+]

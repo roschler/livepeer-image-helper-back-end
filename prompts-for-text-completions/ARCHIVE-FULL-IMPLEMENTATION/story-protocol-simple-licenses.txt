@@ -1,0 +1,149 @@
+
+LICENSE TYPE: Non-Commercial Social Remixing
+
+OVERVIEW: Allows others to remix the your work. This license allows for endless free remixing while tracking all uses of your work while giving you full credit. Similar to: TikTok plus attribution.
+
+registerNonComSocialRemixingPIL(request?: RegisterNonComSocialRemixingPILRequest): Promise<RegisterPILResponse>;
+
+export type RegisterNonComSocialRemixingPILRequest = {
+    txOptions?: TxOptions;
+};
+
+
+ALLOWED
+
+✅ Remix this work
+(derivativesAllowed == true)	
+✅ Distribute their remix anywhere	
+✅ Credit you appropriately
+(derivativesAttribution == true)
+
+
+DISALLOWED:
+
+❌ Commercialize the original and derivative works	
+(commercialUse == false)
+❌ Claim credit for the remix as original work
+(derivativesAttribution == true)
+
+PILTerms({
+  transferable: true,
+  royaltyPolicy: zeroAddress,
+  mintingFee: 0,
+  expiration: 0,
+  commercialUse: false,
+  commercialAttribution: false,
+  commercializerChecker: zeroAddress,
+  commercializerCheckerData: EMPTY_BYTES,
+  commercialRevShare: 0,
+  commercialRevCelling: 0,
+  derivativesAllowed: true,
+  derivativesAttribution: true,
+  derivativesApproval: false,
+  derivativesReciprocal: true,
+  derivativeRevCelling: 0,
+  currency: zeroAddress,
+  uri: ''
+});
+
+================================================================
+
+LICENSE TYPE: Commercial Use 
+
+OVERVIEW: Retain control over reuse of your work, while allowing anyone to appropriately use the work in exchange for the economic terms you set. This is similar to Shutterstock with creator-set rules.
+
+registerCommercialUsePIL(request: RegisterCommercialUsePILRequest): Promise<RegisterPILResponse>;
+
+export type RegisterCommercialUsePILRequest = {
+    defaultMintingFee: string | number | bigint;
+    currency: Address;
+    txOptions?: TxOptions;
+};
+
+ALLOWED:
+
+✅ Purchase the right to use your creation
+(mintingFee is set)	
+✅ Commercialize the original and derivative works
+(commercialUse == true)	
+✅ Distribute their remix anywhere
+
+DISALLOWED:
+
+❌ Claim credit for the original work
+(commercialAttribution == true)
+
+PILTerms({
+  transferable: true,
+  royaltyPolicy: royaltyPolicy,
+  mintingFee: mintingFee,
+  expiration: 0,
+  commercialUse: true,
+  commercialAttribution: true,
+  commercializerChecker: zeroAddress,
+  commercializerCheckerData: EMPTY_BYTES,
+  commercialRevShare: 0,
+  commercialRevCelling: 0,
+  derivativesAllowed: false,
+  derivativesAttribution: false,
+  derivativesApproval: false,
+  derivativesReciprocal: false,
+  derivativeRevCelling: 0,
+  currency: currencyToken,
+  uri: ''
+})
+
+================================================================
+
+LICENSE TYPE: Commercial Remix
+
+OVERVIEW: The world can build on your creation while you earn money from it! This license allows for endless free remixing while tracking all uses of your work while giving you full credit, with each derivative paying a percentage of revenue to its "parent" intellectual property.
+
+registerCommercialRemixPIL(request: RegisterCommercialRemixPILRequest): Promise<RegisterPILResponse>;
+
+export type RegisterCommercialRemixPILRequest = {
+    defaultMintingFee: string | number | bigint;
+    commercialRevShare: number;
+    currency: Address;
+    txOptions?: TxOptions;
+};
+
+ALLOWED:
+
+Others can	Others cannot
+✅ Remix this work
+(derivativesAllowed == true)	
+✅ Distribute their remix anywhere	
+✅ Credit you appropriately
+(derivativesAttribution == true)	
+
+(commercialRevShare is set)
+
+DISALLOWED:
+
+❌ Claim credit for the remix as original work
+(derivativesAttribution == true)
+❌ Claim credit for the original work
+(commercialAttribution == true)
+❌ Claim all the revenue from commercial use of the original work or derivative works
+(commercialRevShare is set)
+
+PILTerms({
+  transferable: true,
+  royaltyPolicy: royaltyPolicy,
+  mintingFee: 0,
+  expiration: 0,
+  commercialUse: true,
+  commercialAttribution: true,
+  commercializerChecker: zeroAddress,
+  commercializerCheckerData: EMPTY_BYTES,
+  commercialRevShare: commercialRevShare,
+  commercialRevCelling: 0,
+  derivativesAllowed: true,
+  derivativesAttribution: true,
+  derivativesApproval: false,
+  derivativesReciprocal: true,
+  derivativeRevCelling: 0,
+  currency: zeroAddress,
+  uri: ''
+});

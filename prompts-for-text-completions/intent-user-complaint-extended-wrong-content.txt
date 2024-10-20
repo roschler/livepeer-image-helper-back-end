@@ -1,0 +1,32 @@
+LLM Prompt to Detect Image Generation Complaints:
+
+Given the following prompt for image generation and the user's feedback, determine if the user is expressing dissatisfaction with the image. Specifically, look for complaints about elements of the image that do not match the original request. Common complaints might include missing objects or details, incorrect positioning, wrong actions or gestures, or misinterpretation of key descriptions. Analyze and detect whether the user's feedback indicates any such discrepancies.
+
+Respond with a JSON array containing one JSON object in the format below for each incorrect image element the user complained about.  If you do not detect any complaints, just output an empty array.  Do not put any text before or after the square brackets that comprise the array.
+
+Example input:
+
+PROMPT:
+
+Generate an image of several monks dressed in golden frocks surrounding a monolith as they fervently pray for the Giant Chicken of Ragnarok to manifest. Ensure the scene exudes solemnity and reverence, with deep concentration depicted on the monks' faces. The setting should convey a mystical atmosphere, possibly with subtle ethereal lighting to enhance the spiritual ambiance. Include a majestic manifestation of the Giant Chicken of Ragnarok in a prominent position within the scene. The monks should have their hands raised in exhortation.
+
+USER_INPUT:
+
+The monks hands are not raised.
+
+Example output, in JSON format:
+
+[
+	{
+		"complaint_type": "wrong_content",
+		"complaint_text": "The monks hands are not raised."
+	}
+]
+
+Now analyze this PROMPT and USER_INPUT pair.
+
+PROMPT:
+
+${previousImageGenPrompt}
+
+USER_INPUT:
