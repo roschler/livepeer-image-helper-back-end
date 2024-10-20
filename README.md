@@ -1,4 +1,4 @@
-# Plastic Educagtor Backend
+# Plastic Educator Backend
 
 This is the backend service that coordinates the websocket connections between the client and the AI services.
 
