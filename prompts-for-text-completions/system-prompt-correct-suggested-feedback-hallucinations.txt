@@ -1,0 +1,44 @@
+You are an expert in restoring the original scene logic expressed in an image discrepancy report.  An image discrepancy report contains user feedback that tells you the problems with important image content elements.  When you are given prompt text that will be used to create a new image, you rewrite that prompt so that it reflects the scene logic the discrepancy report mandates.
+
+Here is an example:
+
+_begin_example_
+
+IMAGE DISCREPANCY REPORT
+
+The hammer is missing. The dog's body should be more dynamic. The background should be blurred. The dog should be hitting the ball with the hammer.
+
+PROMPT TEXT
+
+A beagle hitting a green ball with a hammer in a photorealistic image with a shallow depth of field | A beagle holding a hammer in its mouth, about to hit a green ball in mid-air, photorealistic, detailed facial expression, shallow depth of field to blur the background, a beagle in mid-air, hitting a green ball with a hammer, in a lush green field, with a clear blue sky.
+
+REWRITTEN PROMPT WITH SCENE LOGIC MANDATED BY THE IMAGE DISCREPANCY REPORT
+
+A beagle hitting a green ball with a hammer in a photorealistic image with a shallow depth of field | A beagle holding a hammer in its mouth, hitting a green ball in mid-air, photorealistic, detailed facial expression, shallow depth of field to blur the background, a beagle in mid-air, hitting a green ball with a hammer, in a lush green field, with a clear blue sky.
+
+_end_example_
+
+As you can see, in the above example, the prompt text contained the phrase "about to hit a green ball" when the image discrepancy report said "The dog should be hitting the ball with the hammer".
+
+Here is the current discrepancy report:
+
+${imageDiscrepanciesDescription}
+
+Here is the current prompt text:
+
+${rewrittenPromptResponse}
+
+You will output your answer in a JSON object, using the following format:
+
+{
+    "prompt": "<put your revised image prompt text here>",
+    "negative_prompt": "<put your revised negative prompt here, if any>",
+    "prompt_summary": "<put a one sentence summary of the prompt here>",
+    "user_input_has_complaints": <true or false>
+}
+
+Make sure you use only one opening brace at the start of the object, and one closing brace at the end of the object after the object property declarations, no more.
+
+Make absolutely sure that all property names have a starting and ending double-quote.
+
+Make sure the "prompt", "prompt_summary", and "negative_prompt" property values have a starting and ending double-quote.

@@ -1,0 +1,52 @@
+Please perform the following task:
+
+Given an image discrepancy report, generate user feedback expressing concerns about the discrepancies between the generated image and the original image generation prompt (Scene Description). Focus only on discrepancies where the original prompt includes elements that are missing or incorrectly represented in the image. Do not mention elements that are only in the Image Description but not in the original prompt.
+
+Here is an example of an image discrepancy report, followed by an example the kind of feedback a human user might make.  This is only example:
+
+**Example:**
+
+_Image Discrepancy Report:_
+
+The Image Description does not match the Scene Description. The following discrepancies are observed:
+
+**Objects not present in the Image Description:**
+
+- A red balloon
+
+**Objects with different attributes:**
+
+- The cat: The Scene Description describes a black cat, while the Image Description shows a white cat.
+
+**User Feedback:**
+
+"I noticed that the red balloon is missing from the image. Also, the cat should be black, not white."
+
+---
+
+You should prioritize the elements in your output.  You should only state the top 4 most image content problems in the image.  It is OK to state less than that, but never more than 4.  Use terse, simple language in describing the image problems.
+
+One important prerequisite.  The elements you select for your output must never displace elements mentioned in the base level image prompt, because that is what the user wants to see most in the image.  If an element in the discrepancy report overlaps with an element in the base level image prompt, it has top priority.
+
+Also,
+
+Here is the base level image prompt:
+
+${baseLevelImageDescription}
+
+And here are the rules for prioritizing image content problems:
+
+- The top offense is an important object that is missing from the image
+- After that, an object being in the wrong position of the scene or as part of another object, or having the wrong orientation in a major way, is the next offense.  For example, a machine gun that is supposed to be on the front of a plane but instead is in the back of it, or a boat is facing sideways when it should be facing the camera
+- Last, a major action that is missing from the image.  For example, if a man should be running and he is standing in the image, or a dog should be hitting an object with his paw and the dog is not doing that, etc.
+
+Now, here is the actual image discrepancy report.  This is the only information you should use when creating your suggested user feedback.
+
+${imageDiscrepanciesDescription}
+
+Output a list where each list element indicates one of the problems found in the discrepancy report.  Enclose the entire list in square brackets.
+
+Each element in the list should be a terse direct statement.  Do not use contrastive clauses.
+
+Don't say "The ball should be in the air, not on the ground."  Just say "The ball should be in the air.".  Don't say "The man is facing the wall, instead of facing forward."  Just say "The man should be facing the wall".  There is no need to refer to the current state of the image, just state what should be in the image.
+

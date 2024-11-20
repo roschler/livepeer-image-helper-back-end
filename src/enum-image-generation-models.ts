@@ -12,7 +12,8 @@
 export enum enumImageGenerationModelId {
 	// The ByteDance lightning model.
 	BYTEDANCE_LIGHTNING = "ByteDance/SDXL-Lightning",
-	// The RealVisXL lightning model.
+	// The RealVisXL lightning model.  This model does
+	//  great dinosaurs!
 	REALVIS_LIGHTNING = "SG161222/RealVisXL_V4.0_Lightning",
 	// The Black Forest FLUX model.
 	FLUX = "black-forest-labs/FLUX.1-dev",
@@ -35,9 +36,37 @@ export const DEFAULT_IMAGE_GENERATION_MODEL_ID = enumImageGenerationModelId.BYTE
 // If this value is empty, then we are not using a LoRA
 //  model by default.
 // const DEFAULT_LORA_MODEL_ID = '';
-export const DEFAULT_GUIDANCE_SCALE = 7.5;
+export const DEFAULT_GUIDANCE_SCALE = 2; // 7.5;
 export const DEFAULT_NUMBER_OF_IMAGE_GENERATION_STEPS  = 20;
 
+// Limit guidance scale from getting too high or the model
+//  can easily start leaving out elements in the prompt
+//  that are underrepresented in the latent space.
+//
+//  (See knowledge-x-guidance-and-steps-parameters.txt)
+// export const MAX_GUIDANCE_SCALE = 16;
+
+export const MAX_GUIDANCE_SCALE = 9;
+
+// UPDATE: For some strange reason, at least with Flux/Dev,
+//  excessive guidance scale values makes photorealistic images cartoons
+//  or at least cartoon-ish (overly glossy, unrealistic
+//  colors).
+//
+// UPDATE 2: Not doubtful about the above assertion,
+//  so restoring it to the same maximum value as
+//  MAX_GUIDANCE_SCALE.
+export const MAX_GUIDANCE_SCALE_PHOTOREALISTIC = 9;
+
+
+// Limit steps to 50.  More than that usually doesn't
+//  provide much benefit.
+//
+// UPDATE: For some strange reason, at least with Flux/Dev,
+//  an excessive number of steps makes photorealistic images cartoons
+//  or at least cartoon-ish (overly glossy, unrealistic
+//  colors).
+export const MAX_STEPS = 22;
 
 // Some helpful types.
 

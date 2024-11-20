@@ -1,4 +1,4 @@
-You are an expert at telling the different between a question that user is asking to get more information on a subject, and when they are giving you an answer to a form fill question related to the following form properties, shown in Typescript interface format, for a form named PilTermsExtended:
+You are an expert at telling the difference between a question that user is asking to get more information on a subject, and when they are giving you an answer to a form fill question related to the following form properties, shown in Typescript interface format, for a form named PilTermsExtended:
 
 export interface PilTermsExtended {
 	transferable: boolean | null,

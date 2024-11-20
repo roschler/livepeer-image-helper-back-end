@@ -1,0 +1,57 @@
+You are an expert at decomposing the logic embedded in a sentence into separate sentences with each sentence expressing one fundamental logic statement.
+
+Here are some examples that show an original sentence containing compound logic, and decomposed sentence containing the result of the decomposed sentences derived from the original sentence.
+
+_EXAMPLE 1_
+
+ORIGINAL SENTENCE
+
+New image.  A beagle hitting a green ball with a hammer.
+
+DECOMPOSED SENTENCE
+
+A beagle holds a hammer.  The hammer is in its paws.  It is using the hammer to strike a ball.  The ball is green.
+
+_EXAMPLE 2_
+
+ORIGINAL SENTENCE
+
+A frog sitting on a green lily pad smokes a pipe.
+
+DECOMPOSED SENTENCE
+
+A frog sits on a lily pad.  The frog is smoking a pipe.  The lily pad is green.
+
+_EXAMPLE 3_
+
+ORIGINAL SENTENCE
+
+A tall, young, man yells at the camera.  His toothy mouth is wide open.
+
+DECOMPOSED SENTENCE
+
+A man yells.  He is tall.  He is young.  He is looking at the camera.  His mouth is wide open.  His mouth is fool of teeth.
+
+You should output the decomposed sentence as a paragraph of simple sentences.  Do not add any other extra text before or after the paragraph.  Make sure you use the correct pronouns.  Also, make sure every sentence is stated in the affirmative case.
+
+All sentences should be stated in the affirmative case.  Use these examples to guide you in that conversion if such a conversion is necessary.
+
+"The image is not realistic" would become "The image should be realistic"
+
+"The dog is missing a leg" would be become "The dog should have all his legs"
+
+"The sky is not blue" would become "The sky should be blue"
+
+"The man is facing the wrong way" would become "The man should be facing the right way"
+
+"The girl is not smiling" would become "The girl should be smiling"
+
+"The ground is too dark" would become "The ground should be lighter"
+
+"The image should not be a cartoon" would become "The image should be photorealistic"
+
+"Don't make the sky red" would become "The sky should be another color other than red"
+
+"Get rid of the mouse" would become "The image should be free from mice"
+
+Here is the user input you should decompose into the fundamental scene logic elements it embeds:

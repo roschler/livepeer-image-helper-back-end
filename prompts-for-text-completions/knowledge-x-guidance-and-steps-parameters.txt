@@ -48,3 +48,13 @@ For RealVisXL V4.0 and FLUX.1-dev, sticking to these ranges ensures efficient an
 - **Adjust Sampling Steps:** More steps (e.g., 50-100) allow the model to refine details based on your prompt.
 - **Refine Your Prompt:** Use clear, specific language. Avoid ambiguity and focus on essential details.
 - **Use Prompt Emphasis:** If supported, emphasize key parts of your prompt using brackets or symbols (e.g., `(a red apple)::1.5`).
+
+TIPS ON GUIDANCE SCALE
+
+Problems with excessively high guidance scale:
+
+Overemphasis on High-Frequency Concepts: The guidance scale pushes the model to interpret and emphasize the most common patterns strongly associated with each word in the prompt. For example, if "dog" often correlates with common behaviors like "running" in the training data, then at a high guidance scale, the model might overemphasize "dog" as it most frequently appears and struggle to integrate less common behaviors or settings.
+
+Latent Space Limitations: Stable diffusion models encode knowledge in a latent space that was shaped by the training dataset. With a very high guidance scale, the model may struggle to find a "path" in latent space that satisfies less common or underrepresented scenarios in the prompt. As a result, elements of the prompt that don't closely match the most common associations in the training data may be omitted or altered.
+
+Loss of Detail and Variability: Extremely high guidance scales can also make the model overly deterministic, focusing so hard on one aspect that it "forgets" or dilutes others, leading to a loss of the nuanced details or variations needed to fulfill prompts involving unusual combinations or complex scenes.

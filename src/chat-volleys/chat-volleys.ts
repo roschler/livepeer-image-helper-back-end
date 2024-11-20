@@ -5,7 +5,7 @@
 
 // These are the default choices we make for various image
 //  generation parameters.
-import { getCurrentOrAncestorPathForSubDirOrDie, getUnixTimestamp } from "../common-routines"
+import { appendEosCharIfNotPresent, getCurrentOrAncestorPathForSubDirOrDie, getUnixTimestamp } from "../common-routines"
 
 import fs from "fs"
 import path from "node:path"
@@ -14,14 +14,10 @@ import { TextCompletionResponse } from "../openai-parameter-objects"
 import {
 	DEFAULT_GUIDANCE_SCALE,
 	DEFAULT_IMAGE_GENERATION_MODEL_ID, DEFAULT_NUMBER_OF_IMAGE_GENERATION_STEPS,
-	enumImageGenerationModelId,
 	IntentJsonResponseObject,
 } from "../enum-image-generation-models"
-import { StateType } from "../system/types"
-
-export type BooleanOrNull = boolean | null;
-export type NumberOrNull = number | null;
-export type StringOrNull = string | null;
+import { BooleanOrNull, NumberOrNull, StateType, StringOrNull } from "../system/types"
+import { TEMPERATURE_ACCURACY_FIRST } from "../openai-chat-bot"
 
 /**
  * This class has the same fields as the PilTerms struct
@@ -52,6 +48,16 @@ export class PilTermsExtended {
 	 */
 	constructor() {
 	}
+}
+
+/**
+ * Simple interface to return the last base leve
+ *  image description prompt and its matching
+ *  negative prompt.
+ */
+export interface BaseLevelImageDescriptionPromptPair {
+	prompt: string;
+	negative_prompt: string;
 }
 
 /*
@@ -103,22 +109,91 @@ export class CurrentChatState_image_assistant {
 	public timestamp: number = getUnixTimestamp() ;
 
 	/**
+	 * The temperature to use with the main image generation
+	 *  text completion call.  We start with a value that
+	 *  maximizes accuracy over embellishments.
+	 */
+	public temperature: number = TEMPERATURE_ACCURACY_FIRST;
+
+	// -------------------- BEGIN: AUTO IMAGE REFINEMENT FIELDS ------------
+
+	// These are the fields used in an auto image refinement session.
+
+	/**
+	 * This is the CONTIGUOUS refinement iteration count
+	 *  during an auto image refinement session.  If the
+	 *  user does a manual prompt, this count is reset
+	 *  to 0.
+	 */
+	public refinement_iteration_count: number = 0;
+
+	/**
+	 * This is the number of errors detected this refinement
+	 *  iteration.  An error is a missing or incorrect
+	 *  image element when comparing the prompt that
+	 *  generated an image to the description given
+	 *  to us by vision recognition model.
+	 */
+	public num_image_prompt_errors: number = 0;
+
+	/**
+	 * This is the suggested feedback that the client can
+	 *  use as the user input in the next chat volley,
+	 *  should the client choose to continue the
+	 *  auto image refinement session.
+	 */
+	public suggested_feedback: string = '';
+
+	// -------------------- END  : AUTO IMAGE REFINEMENT FIELDS ------------
+
+	/**
 	 * Constructs an instance of CurrentChatState_image_assistant.
 	 *
-	 * @param model_id - The model currently selected for image generation.
-	 * @param loras - The LoRA object that has the currently selected, if any, LoRA models.
-	 * @param guidance_scale - The current value set for the context free guidance parameter.
-	 * @param steps - The current value set for the number of steps to use when generating an image.
+	 * @param model_id - The model currently selected for image
+	 *  generation.
+	 * @param loras - The LoRA object that has the currently
+	 *  selected, if any, LoRA models.
+	 * @param guidance_scale - The current value set for the
+	 *  context free guidance parameter.
+	 * @param steps - The current value set for the number of
+	 *  steps to use when generating an image.
+	 * @param refinement_iteration_count - If we are in a auto
+	 *  image refinement session then this is the number
+	 *  of automatic refinements that have been done so
+	 *  far for the last generated image.
+	 * @param num_image_prompt_errors - This is the number of
+	 *  errors detected between what was described with the
+	 *  current image generation prompt and the description
+	 *  returned by the vision recognition model.
+	 * @param suggested_feedback - This is the suggested
+	 *  feedback we created based on the variance between
+	 *  what was described with the current image generation
+	 *  prompt and the description returned by the vision
+	 *  recognition model.
 	 */
 	constructor(
 			model_id: string,
 			loras: object,
 			guidance_scale: number,
-			steps: number) {
+			steps: number,
+			refinement_iteration_count: number,
+			num_image_prompt_errors: number,
+			suggested_feedback: string) {
 		this.model_id = model_id;
 		this.loras = loras;
 		this.guidance_scale = guidance_scale;
 		this.steps = steps;
+		this.refinement_iteration_count = refinement_iteration_count;
+		this.num_image_prompt_errors = num_image_prompt_errors;
+		this.suggested_feedback = suggested_feedback;
+	}
+
+	/**
+	 * This function outputs a friendly string containing
+	 *  the current stable diffusion parameters.
+	 */
+	public toStringStableDiffusionParameters() {
+		return `    MODEL ID: ${this.model_id}\n    STEPS: ${this.steps}\n    GUIDANCE SCALE: ${this.guidance_scale}`;
 	}
 
 	/**
@@ -131,7 +206,10 @@ export class CurrentChatState_image_assistant {
 				DEFAULT_IMAGE_GENERATION_MODEL_ID,
 				{},
 				DEFAULT_GUIDANCE_SCALE,
-				DEFAULT_NUMBER_OF_IMAGE_GENERATION_STEPS
+				DEFAULT_NUMBER_OF_IMAGE_GENERATION_STEPS,
+				0,
+				0,
+				''
 			);
 
 		return newObj
@@ -148,6 +226,9 @@ export class CurrentChatState_image_assistant {
 			guidance_scale: this.guidance_scale,
 			steps: this.steps,
 			timestamp: this.timestamp,
+			refinement_iteration_count: this.refinement_iteration_count,
+			num_image_prompt_errors: this.num_image_prompt_errors,
+			suggested_feedback: this.suggested_feedback
 		};
 	}
 
@@ -157,7 +238,10 @@ export class CurrentChatState_image_assistant {
 			json.model_id,
 			json.loras,
 			json.guidance_scale,
-			json.steps
+			json.steps,
+			json.refinement_iteration_count,
+			json.num_image_prompt_errors,
+			json.suggested_feedback
 		);
 	}
 
@@ -192,10 +276,6 @@ export class CurrentChatState_license_assistant {
 	/**
 	 * Constructs an instance of CurrentChatState_license_assistant.
 	 *
-	 * @param model_id - The model currently selected for _license_assistantlicense terms.
-	 * @param loras - The LoRA object that has the currently selected, if any, LoRA models.
-	 * @param guidance_scale - The current value set for the context free guidance parameter.
-	 * @param steps - The current value set for the number of steps to use when generating an image.
 	 */
 	constructor(
 		pilTerms: PilTermsExtended | null) {
@@ -313,7 +393,12 @@ export class ChatVolley {
 	/**
 	 * The full system prompt we sent to the LLM for consideration.
 	 */
-	public full_prompt_to_system: string;
+	public full_system_prompt: string;
+
+	/**
+	 * The full user prompt we sent to the LLM for consideration.
+	 */
+	public full_user_prompt: string;
 
 	// -------------------- END  : COMMON ASSISTANT FIELDS ------------
 
@@ -330,6 +415,23 @@ export class ChatVolley {
 	public is_new_session: boolean;
 
 	/**
+	 * If TRUE, then this chat volley is considered is
+	 *  part of an auto image refinement session with
+	 *  the server as the "user" input source.
+	 *
+	 *  If FALSE, then it is considered to be a
+	 *   normal chat volley with the user.
+	 */
+	// public is_auto_refinement_session: boolean;
+
+	/**
+	 * The image processing mode that was used
+	 *  during the chat volley.  (See
+	 *  EnumImageProcessingModes.)
+ 	 */
+	public image_processing_mode: string;
+
+	/**
 	 * The state of the chat at the start of the volley.
 	 */
 	public chat_state_at_start_image_assistant: CurrentChatState_image_assistant | null;
@@ -338,6 +440,13 @@ export class ChatVolley {
 	 * The state of the chat at the end of the volley.
 	 */
 	public chat_state_at_end_image_assistant: CurrentChatState_image_assistant | null;
+
+	/**
+	 * These are the image URLs for the images that were generated
+	 *  during this chat volley.  These are the S3 URLs for the
+	 *  JPEG files we stored in the S3 bucket.
+	 */
+	public array_of_image_urls: string[] = [];
 
 	// -------------------- END  : IMAGE ASSISTANT FIELDS ------------
 
@@ -358,7 +467,7 @@ export class ChatVolley {
 
 
 	/**
-	 * Constructs an instance of ChatVolley.
+	 * Constructs an instance of a ChatVolley object.
 	 *
 	 * @param is_new_session - If TRUE, then this volley is considered
 	 *  the start of a new image generation or license terms session.
@@ -369,16 +478,33 @@ export class ChatVolley {
 	 *  timestamp value, use this parameter to do that.  Otherwise,
 	 *  pass NULL and the current date/time will be used.
 	 * @param user_input - The user input received that began the volley.
-	 * @param prompt - The prompt that was passed to the image generator model.
-	 * @param negative_prompt - The negative prompt that was passed to the image generator model.
-	 * @param text_completion_response - The whole response from the image generator prompt maker LLM.
-	 * @param response_sent_to_client - The response we sent to the user via the client websocket connection.
-	 * @param chat_state_at_start_image_assistant -  For image assistant chats, the state of the chat at the start of the volley.
-	 * @param chat_state_at_end_image_assistant - For image assistant chats, the state of the chat at the end of the volley.
-	 * @param chat_state_at_start_license_assistant - For license assistant chats, the state of the chat at the start of the volley.
-	 * @param chat_state_at_end_license_assistant - For license assistant chats, the state of the chat at the end of the volley.
-	 * @param array_of_intent_detections - Array of intent detections including complaint type and complaint text.
-	 * @param full_prompt_to_system - The full prompt we sent to the LLM for consideration.
+	 * @param prompt - The prompt that was passed to the image generator
+	 * 	model.
+	 * @param negative_prompt - The negative prompt that was passed to the
+	 * 	image generator model.
+	 * @param text_completion_response - The whole response from the image
+	 * 	generator prompt maker LLM.
+	 * @param response_sent_to_client - The response we sent to the user
+	 * 	via the client websocket connection.
+	 * @param chat_state_at_start_image_assistant -  For image assistant
+	 * 	chats, the state of the chat at the start of the volley.
+	 * @param chat_state_at_end_image_assistant - For image assistant
+	 * 	chats, the state of the chat at the end of the volley.
+	 * @param chat_state_at_start_license_assistant - For license assistant
+	 * 	chats, the state of the chat at the start of the volley.
+	 * @param chat_state_at_end_license_assistant - For license assistant
+	 * 	chats, the state of the chat at the end of the volley.
+	 * @param array_of_intent_detections - Array of intent detections
+	 *  including complaint type and complaint text.
+	 * @param full_system_prompt - The full prompt we sent to the LLM
+	 *  for consideration.
+	 * @param full_user_input - The full user prompt we sent to the LLM
+	 *  for consideration with our adornments made (e.g. - chat history,
+	 *  wrong content instructions, etc.)
+	 * @param image_processing_mode - The image processing mode that
+	 *  was used this volley.
+	 * @param array_of_image_urls - The image URLs for the images that
+	 *  were generated  during the chat volley.
 	 */
 	constructor(
 		is_new_session: boolean,
@@ -393,7 +519,10 @@ export class ChatVolley {
 		chat_state_at_start_license_assistant: CurrentChatState_license_assistant | null,
 		chat_state_at_end_license_assistant: CurrentChatState_license_assistant | null,
 		array_of_intent_detections: IntentJsonResponseObject[],
-		full_prompt_to_system: string
+		full_system_prompt: string,
+		full_user_input: string,
+		image_processing_mode: string,
+		array_of_image_urls: string[]
 	) {
 		this.is_new_session = is_new_session;
 
@@ -414,7 +543,10 @@ export class ChatVolley {
 		this.prompt = prompt;
 		this.negative_prompt = negative_prompt;
 		this.response_to_user = response_sent_to_client;
-		this.full_prompt_to_system = full_prompt_to_system;
+		this.full_system_prompt = full_system_prompt;
+		this.full_user_prompt = full_user_input;
+		this.image_processing_mode = image_processing_mode;
+		this.array_of_image_urls = array_of_image_urls;
 	}
 
 	/**
@@ -499,7 +631,10 @@ export class ChatVolley {
 			negative_prompt: this.negative_prompt,
 			response_to_user: this.response_to_user,
 			array_of_intent_detections: this.array_of_intent_detections,
-			full_prompt_to_system: this.full_prompt_to_system
+			full_system_prompt: this.full_system_prompt,
+			full_user_prompt: this.full_user_prompt,
+			image_processing_mode: this.image_processing_mode,
+			array_of_image_urls: this.array_of_image_urls,
 		};
 	}
 
@@ -526,7 +661,10 @@ export class ChatVolley {
 				? null
 				: CurrentChatState_license_assistant.fromJSON(json.chat_state_at_end_license_assistant),
 			json.array_of_intent_detections,
-			json.full_prompt_to_system
+			json.full_system_prompt,
+			json.full_user_prompt,
+			json.image_processing_mode,
+			json.array_of_image_urls,
 		);
 	}
 
@@ -582,6 +720,7 @@ export class ChatHistory {
 		if (this.isHistoryEmpty()) {
 			return null;
 		}
+
 		return this.aryChatVolleys[this.aryChatVolleys.length - 1];
 	}
 
@@ -651,6 +790,211 @@ Use the chat history to help guide your efforts.  Here it is now:
 		return strChatHistory
 	}
 
+	/**
+	 * This function searches backwards from the end of the
+	 *  chat history for the most recent chat volley that
+	 *  has the is_new_session flag set to TRUE.  It then
+	 *  builds a chat history string formatted as an LLM
+	 *  annotated prompt, that includes:
+	 *
+	 *  	- The initial image description
+	 *  	- The user requests to modify the image that followed,
+	 *  		if any.
+	 *      - And finally, the user input passed to this function.
+	 *
+	 * @returns - Returns the chat history for most recent
+	 *  image session, starting from the initial image
+	 *  description, up until the last chat volley, a
+	 *  prompt ready formatted string, or NULL if a chat
+	 *  volley with the is_new_session flag set to TRUE
+	 *  could not be found.
+	 */
+	public buildChatHistoryLastImageOnly(userInput: string):StringOrNull {
+
+		// There should always be current user input.
+		if (userInput.trim().length < 1)
+			throw new Error(`The userInput parameter is empty.`);
+
+
+		// If there's no chat history yet, there's nothing to build.
+		if (this.isHistoryEmpty()) {
+			return null;
+		}
+
+		// Search backwards for the first chat volley
+		//  we find that has the new session flag set to
+		//  TRUE.
+		let ndxFoundAt = -1;
+
+		for (
+				let ndxOfChatVolley = this.aryChatVolleys.length - 1; ndxOfChatVolley >= 0;
+				ndxOfChatVolley--) {
+			const chatVolleyObj = this.aryChatVolleys[ndxOfChatVolley];
+
+			if (chatVolleyObj.is_new_session) {
+				ndxFoundAt = ndxOfChatVolley;
+				break;
+			}
+
+		}
+
+		if (ndxFoundAt < 0) {
+			// This should never happen, since this means
+			//  somehow the original image description prompt
+			//  was not entered into the chat history, or
+			//  the is_new_session flag was not set to TRUE
+			//  when it was.
+			//
+			// We don't throw an error in case the error occurred
+			//  due to deletion or loss of our chat history files.
+
+			// -------------------- BEGIN: EXIT POINT ------------
+
+			const errMsg = `Unable to find any chat volley object with the is_new_session flag set to true.`;
+
+			console.error(CONSOLE_CATEGORY, errMsg);
+
+			return null;
+
+			// -------------------- END  : EXIT POINT ------------
+		} else {
+			const originalImageDescription =
+				this.aryChatVolleys[ndxFoundAt].user_input;
+
+			const aryModifications: string[] = [];
+
+			for (
+					let ndx = ndxFoundAt + 1;
+					ndx < this.aryChatVolleys.length;
+					ndx++) {
+				aryModifications.push(this.aryChatVolleys[ndx].user_input);
+			}
+
+			// IMPORTANT!  The labels used here MUST match those
+			//  found in the intent detectors that look for
+			//  them, like the extended wrong content detector!
+			let chatHistoryForLastImage =
+				`
+				Here is the original image description that created the image:
+				
+				ORIGINAL IMAGE DESCRIPTION: ${originalImageDescription}
+				`;
+
+			if (aryModifications.length > 0) {
+				const modificationsHistory =
+					aryModifications.join('\n');
+
+				chatHistoryForLastImage +=
+					`
+					Here is a list of modifications the user requested, in chronological order:
+					`
+				chatHistoryForLastImage += modificationsHistory;
+			}
+
+			chatHistoryForLastImage +=
+				`
+				Here is current user input from the user:
+				
+				USER FEEDBACK: ${userInput}
+				`;
+
+			return chatHistoryForLastImage;
+		}
+	}
+
+	/**
+	 * This function searches backwards from the end of the
+	 *  chat history for the most recent chat volley that
+	 *  has a CONTIGUOUS refinement iteration of count
+	 *  with a 0 value.  It then returns the user input
+	 *  from that chat volley if the start new image
+	 *  flag is set in that volley, otherwise, it
+	 *  returns the last full system prompt passed
+	 *  to the image generator.
+	 *
+	 * STRATEGY: During a CONTIGUOUS refinement session,
+	 *  where the user just keeps pressing the REFINE
+	 *  button without intervening manual input,
+	 *  the most recent chat volley with a zero
+	 *  refinement iteration count contains the
+	 *  original "primary" image prompt.  We check
+	 *  the start new session flag because the user
+	 *  input might contain an image modification or
+	 *  feedback/complaint, instead of a base level
+	 *  image description.
+	 *
+	 * @returns - Returns the chat volley that contains
+	 *  the most recent base level image prompt the user
+	 *  entered, or was created for them from the previous
+	 *  manually entered user input during a manual input
+	 *  chat volley.
+	 */
+	public getLastBaseLevelImagePrompt(): BaseLevelImageDescriptionPromptPair | null {
+
+		// If there's no chat history yet, there's nothing to build.
+		if (this.isHistoryEmpty()) {
+			return null;
+		}
+
+		// Search backwards for the first chat volley
+		//  we find that has the new session flag set to
+		//  TRUE.
+		let ndxFoundAt = -1;
+		let chatVolleyFoundObj = null;
+
+		for (
+				let ndxOfChatVolley = this.aryChatVolleys.length - 1; ndxOfChatVolley >= 0;
+				ndxOfChatVolley--) {
+			const chatVolleyObj = this.aryChatVolleys[ndxOfChatVolley];
+
+			if (chatVolleyObj.chat_state_at_end_image_assistant?.refinement_iteration_count === 0) {
+				// Found the most recent chat volley with a 0
+				//  refinement iteration count.
+				ndxFoundAt = ndxOfChatVolley;
+				chatVolleyFoundObj = chatVolleyObj;
+				break;
+			}
+		}
+
+		if (!chatVolleyFoundObj) {
+			// This should never happen, since there should always
+			//  be at least one chat volley with a refinement iteration
+			//  count of 0.
+			//
+			// We don't throw an error in case the error occurred
+			//  due to deletion or loss of our chat history files.
+
+			// -------------------- BEGIN: EXIT POINT ------------
+
+			const errMsg = `Unable to find any chat volley object with a refinement iteration count equal to 0.`;
+
+			console.error(CONSOLE_CATEGORY, errMsg);
+
+			return null;
+
+			// -------------------- END  : EXIT POINT ------------
+		} else {
+			// Is the new session flag set, indicating a
+			//  new image was started
+			if (chatVolleyFoundObj.is_new_session) {
+				// Return the user input and whatever was
+				//  used for the negative prompt at the time.
+				return {
+					prompt: chatVolleyFoundObj.user_input,
+					negative_prompt: chatVolleyFoundObj.negative_prompt
+				}
+			} else {
+				return {
+					// Return the LLM created prompt passed
+					//  and whatever was used for the negative
+					//  prompt at the time.
+					prompt: chatVolleyFoundObj.prompt,
+					negative_prompt: chatVolleyFoundObj.negative_prompt
+				}
+			}
+		}
+	}
+
 	// -------------------- BEGIN: SERIALIZATION METHODS ------------
 
 	// Serialization method
@@ -699,6 +1043,19 @@ export const EnumChatbotNames = {
  * Type for the values of EnumChatbotNames (i.e., "image_assistant" | "license_assistant").
  */
 export type EnumChatbotNameValues = typeof EnumChatbotNames[keyof typeof EnumChatbotNames];
+
+// -------------------- BEGIN: IMAGE PROCESSING MODES ------------
+
+export enum EnumImageProcessingModes {
+	// User wants a new image.
+	"NEW" = "new",
+	// Fix problems with an images content.
+	"REFINE" = "refine",
+	// Enhance an image to make it more interesting.
+	"ENHANCE" = "enhance"
+}
+
+// -------------------- END  : IMAGE PROCESSING MODES ------------
 
 /**
  * Builds the full path to the user's chat history file.

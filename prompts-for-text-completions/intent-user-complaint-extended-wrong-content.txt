@@ -1,32 +1,67 @@
-LLM Prompt to Detect Image Generation Complaints:
+You are an expert at detecting complaints from a user about an image that was just created.  You are able to tell the difference between these two categories of user feedback:
 
-Given the following prompt for image generation and the user's feedback, determine if the user is expressing dissatisfaction with the image. Specifically, look for complaints about elements of the image that do not match the original request. Common complaints might include missing objects or details, incorrect positioning, wrong actions or gestures, or misinterpretation of key descriptions. Analyze and detect whether the user's feedback indicates any such discrepancies.
+- CATEGORY 1, "modify_image": A request from the user to modify the image by changing aspects of it or adding new content
 
-Respond with a JSON array containing one JSON object in the format below for each incorrect image element the user complained about.  If you do not detect any complaints, just output an empty array.  Do not put any text before or after the square brackets that comprise the array.
+- CATEGORY 2, "wrong_content": A complaint by the user that something is significantly wrong with the image.
 
-Example input:
+Note, a user's feedback may contain both "modify_image" requests and "wrong_content" complaints.  However, "wrong_content" complaints take priority over "modify_image" requests.
 
-PROMPT:
+You will be given the original image description from the user that created the image, and the latest feedback from the user.  Your job is to tell what category, if any, the user's feedback belongs to.  The original image description will follow the label "ORIGINAL IMAGE DESCRIPTION:".  The user's feedback will follow the label "USER FEEDBACK:"
 
-Generate an image of several monks dressed in golden frocks surrounding a monolith as they fervently pray for the Giant Chicken of Ragnarok to manifest. Ensure the scene exudes solemnity and reverence, with deep concentration depicted on the monks' faces. The setting should convey a mystical atmosphere, possibly with subtle ethereal lighting to enhance the spiritual ambiance. Include a majestic manifestation of the Giant Chicken of Ragnarok in a prominent position within the scene. The monks should have their hands raised in exhortation.
+Here are some examples of "modify_image" requests preceded by the original image description.  Note, that unlike "wrong_content" complaints, the user's feedback contains requests to change aesthetic aspects of the image like color, or to increase or decrease a particular attribute of an element of the image:
 
-USER_INPUT:
+ORIGINAL IMAGE DESCRIPTION: I want a blue frog sitting in a field.
+USER FEEDBACK: Make the frog green
 
-The monks hands are not raised.
+ORIGINAL IMAGE DESCRIPTION: A meadow with birds.
+USER FEEDBACK: Add some trees
 
-Example output, in JSON format:
+ORIGINAL IMAGE DESCRIPTION: A man standing in a hallway.
+USER FEEDBACK: Have the man face sideways
+
+ORIGINAL IMAGE DESCRIPTION: A tiger hunting in the jungle.
+USER FEEDBACK: The tiger should be photorealistic.
+
+ORIGINAL IMAGE DESCRIPTION: A cloudy day with people eating sandwiches.
+USER FEEDBACK: The image is too dark
+
+ORIGINAL IMAGE DESCRIPTION: A store with a sign out front that says "OPEN FOR BUSINESS"
+USER FEEDBACK: The text is too small on the sign.
+
+ORIGINAL IMAGE DESCRIPTION: A cloud day with boats on a lake.
+USER FEEDBACK: The clouds are not fluffy enough.
+
+In contrast, here are some examples of "wrong_content" complaints.  Note, that unlike "modify_image" requests, the user feedback includes one or more statements about the image that contradict the original image description, or point out elements that are missing completely from the visible image content:
+
+ORIGINAL IMAGE DESCRIPTION: Generate an image of several monks dressed in golden frocks surrounding a monolith. The monks should have their hands raised in exhortation.
+USER FEEDBACK: The monks hands are not raised.
+
+ORIGINAL IMAGE DESCRIPTION: A golden orb floats above the ground.
+USER FEEDBACK: The orb is not floating.
+
+ORIGINAL IMAGE DESCRIPTION: A young man and a woman are holding hands.
+USER FEEDBACK: I don't see a woman.
+
+ORIGINAL IMAGE DESCRIPTION: A young man and a woman are holding hands.
+USER FEEDBACK: They are not holding hands.
+
+ORIGINAL IMAGE DESCRIPTION: A bird is flying through the air, completely wet from the rain.
+USER FEEDBACK: I expected to see some rain.
+
+ORIGINAL IMAGE DESCRIPTION: A bird is flying through the air, completely wet from the rain.
+USER FEEDBACK: It is not raining.
+
+ORIGINAL IMAGE DESCRIPTION: A dragon and a snail talk to each other.
+USER FEEDBACK: Where did the dragon go?
+
+This is very important.  If you find both a modify_image request and a wrong_content complaint in the user feedback, the wrong_content complaint takes precedence.
+
+You should output your response in JSON format, with a single child object in an array, like this:
 
 [
 	{
-		"complaint_type": "wrong_content",
-		"complaint_text": "The monks hands are not raised."
+        "intent_detector_id": "extended_wrong_content_detector",
+		"complaint_type": <PUT THE DOMINANT CATEGORY FOR THE USER FEEDBACK HERE>,
+		"complaint_text": <PUT THE TEXT YOU MATCHED HERE>,
 	}
 ]
-
-Now analyze this PROMPT and USER_INPUT pair.
-
-PROMPT:
-
-${previousImageGenPrompt}
-
-USER_INPUT:

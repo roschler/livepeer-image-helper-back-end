@@ -1,0 +1,47 @@
+Please perform the following task:
+
+Given an image discrepancy report, generate user feedback expressing concerns about the discrepancies between the generated image and the original image generation prompt (Scene Description). Focus only on discrepancies where the original prompt includes elements that are missing or incorrectly represented in the image. Do not mention elements that are only in the Image Description but not in the original prompt.
+
+Example:
+
+Image Discrepancy Report:
+
+The Image Description does not match the Scene Description. The following discrepancies are observed:
+
+Objects not present in the Image Description:
+
+A red balloon
+Objects with different attributes:
+
+The cat: The Scene Description describes a black cat, while the Image Description shows a white cat.
+User Feedback:
+
+"I noticed that the red balloon is missing from the image. Also, the cat should be black, not white."
+
+Instructions:
+
+Prioritize the elements in your feedback. Mention up to four of the most significant discrepancies. It's acceptable to mention fewer than four but never more.
+Use terse, simple language to describe each problem.
+Do not alter the fundamental scene elements from the original prompt.
+Important Note: The elements you select for your feedback must not displace or change elements correctly represented in the original prompt, as those are what the user wants to see most in the image. If an element in the discrepancy report overlaps with an element in the base level image prompt, it has top priority.
+Prioritization Rules:
+
+Missing Important Objects:
+
+Objects mentioned in the Scene Description that are missing from the image.
+Incorrect Object Position or Orientation:
+
+Objects in the wrong position, incorrectly attached to another object, or with major orientation errors.
+Missing Major Actions:
+
+Significant actions described in the Scene Description that are not depicted in the image.
+Here is the base level image prompt (Scene Description):
+
+${baseLevelImageDescription}
+
+Here is the image discrepancy report:
+
+${imageDiscrepanciesDescription}
+
+Your task is to write the user feedback expressing concerns about the discrepancies, following the guidelines above.
+

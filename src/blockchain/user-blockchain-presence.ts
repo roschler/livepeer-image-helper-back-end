@@ -17,14 +17,13 @@ import {
 } from "../story-protocol/story-protocol-common"
 import {
     CreateIpAssetWithPilTermsRequest,
-    CreateIpAssetWithPilTermsResponse, CreateNFTCollectionRequest, PIL_TYPE,
+    CreateIpAssetWithPilTermsResponse, CreateNFTCollectionRequest, PIL_TYPE, SimpleWalletClient,
     StoryClient,
     StoryConfig,
     SupportedChainIds,
 } from "@story-protocol/core-sdk"
 import { MetaMaskInpageProvider } from "@metamask/providers"
 import { RPCProviderUrl } from "../story-protocol/utils"
-import {SimpleWalletClient} from "@story-protocol/core-sdk/dist/declarations/src/abi/generated";
 import { MintNftImageDetails } from "../system/types"
 
 /**
@@ -344,12 +343,10 @@ export class UserBlockchainPresence {
         if (!window.ethereum)
             throw new Error(`Unable to find an Ethereum provider.`);
 
-        const ethProvider: MetaMaskInpageProvider = window.ethereum;
+        // const ethProvider: MetaMaskInpageProvider = window.ethereum;
 
         const config: StoryConfig = {
-            // account: this.currentAccount, // MetaMask account
             chainId: await this.getCurrentChainId(), // Get the current chain ID from MetaMask
-            // transport: custom(ethProvider), // Using MetaMask's provider
             transport: http(RPCProviderUrl), // Using MetaMask's provider
             wallet: this.walletClient as SimpleWalletClient
         };

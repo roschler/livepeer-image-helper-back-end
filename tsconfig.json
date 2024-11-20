@@ -1,6 +1,6 @@
 {
 	"compilerOptions": {
-		"target": "es2017",
+		"target": "es2018",
 		"skipLibCheck": true,
 		"sourceMap": true,
 		"outDir": "./dist",
@@ -21,6 +21,6 @@
 		"types": ["node"],  // Add this line
 		"typeRoots": ["./node_modules/@types"]  // Add this line
 	},
-	"exclude": ["node_modules"],
+	"exclude": ["node_modules", "../node_modules", "../../node_modules", "../../../node_modules"],
 	"include": ["./src/**/*.ts", "./node_modules/readable-stream"]  // Add readable-stream if needed
 }

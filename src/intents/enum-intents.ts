@@ -3,21 +3,28 @@
 
 // This is the number of steps to adjust an image generation
 //  request by, up or down, based on feedback from the user.
+import { DEFAULT_GUIDANCE_SCALE } from "../enum-image-generation-models"
+
 export const NUM_STEPS_ADJUSTMENT_VALUE = 3;
 
 // This is the amount to adjust the guidance scale during
 // an image generation, up or down, based on feedback from the user.
 export const NUM_GUIDANCE_SCALE_ADJUSTMENT_VALUE = 3;
 
+// This is the amount to adjust the LLM prompt TEMPERATURE value
+//  up or down during an image generation, up or down,
+//  based on feedback from the user.
+export const NUM_TEMPERATURE_ADJUSTMENT_VALUE = 0.15;
+
 // This is the minimum guidance scale we use with images
 //  that have text on them, to decrease the chances of
 //  misspelled words or distorted text, or if the user
 //  has made a wrong content complaint.
-export const MIN_GUIDANCE_SCALE_IMAGE_TEXT_OR_WRONG_COMPLAINT_VALUE = 28;
+export const MIN_GUIDANCE_SCALE_IMAGE_TEXT_OR_WRONG_COMPLAINT_VALUE = DEFAULT_GUIDANCE_SCALE;
 
 // This is the minimum number of steps we will make an
 //  image generation call with.
-export const MIN_STEPS = 1;
+export const MIN_STEPS = 6;
 
 // This is the minimum number of steps we use with images
 //  that have text on them, to decrease the chances of
@@ -50,7 +57,11 @@ export enum enumIntentDetectorId_image_assistant {
 	// User is complaining about the generation speed.
 	USER_COMPLAINT_IMAGE_GENERATION_SPEED = "user_complaint_speed_image_generation_speed",
 	// User wants to start a brand new image.
-	START_NEW_IMAGE = "start_new_image"
+	START_NEW_IMAGE = "start_new_image",
+	// Identify the nature of the user input as either
+	//  an adjustment to an existing image, or the request
+	//  to start a brand new image.
+	NATURE_OF_USER_REQUEST = "nature_of_user_request"
 }
 
 // -------------------- END  : enumIntentDetectorId_image_assistant ------------
@@ -67,7 +78,7 @@ export enum enumIntentDetectorId_image_assistant {
 export enum enumChangeDescription{
 	"CHANGE_DESC_BE_LESS_CREATIVE" = "* I have told the engine to be less creative",
 	"CHANGE_DESC_BE_MORE_CREATIVE" = "* I have told the engine to be more creative",
-	"CHANGE_DESC_USE_TEXT_ENGINE" = "* I have switched to a text capable engine.  Note, image generations will take much longer to generate",
+	"CHANGE_DESC_USE_TEXT_ENGINE" = "* I have switched to Flux, a text capable engine.  Note, image generations will take a lot longer to generate",
 	"CHANGE_DESC_USE_FLUX_ENGINE" = "* I have switched to the Flux engine, image generations will take much longer to generate",
 	"CHANGE_DESC_LESS_STEPS" = "* I have decreased the time spent on image generation to make things faster",
 	"CHANGE_DESC_MORE_STEPS" = "* I have increased the time spent on image generation to improve quality",

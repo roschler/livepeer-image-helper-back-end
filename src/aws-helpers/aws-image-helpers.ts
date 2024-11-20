@@ -4,18 +4,155 @@
 import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3"
 import axios from "axios";
 import { URL } from "url";
+import {
+	convertImageBufferToBase64ImageUri, detectImageFormatFromUrl,
+	ImagePackage,
+	retrieveImageAsJpg,
+} from "../image-processing/image-handling"
+import { getEnvironmentVariableByName } from "../common-routines"
 
 const CONSOLE_CATEGORY = 'aws-image-helpers';
 
 /**
- * Uploads an image from Livepeer to Amazon S3 under a user-specific folder.
+ * Simple function to replace the "png" file extension with a
+ *  ".jpg" extension.
  *
- * @param {string} userId - The ID of the user to whom the image belongs.
- * @param {string} livepeerImgUrl - The Livepeer image URL.
+ * @param filename - The file name to modify.
  *
- * @returns {Promise<string>} - The full S3 URI to the new asset or existing object.
+ * @return - Returns the file name with a JPG extension.
  */
-export async function putLivepeerImageToS3(userId: string, livepeerImgUrl: string): Promise<string> {
+function replacePngWithJpg(filename: string) {
+	return filename.replace(/\.png$/i, '.jpg');
+}
+
+/**
+ * @param s3ImageUrl - The S3 image URL whose contents is to be packaged.
+ *
+ * @returns - Returns a promise that resolves to a fully filled out
+ *  ImagePackage object that reflects the contents of the S3 asset
+ *  retrieved using the S3 image URL.
+ */
+async function buildExistingImagePackage(s3ImageUrl: string): Promise<ImagePackage> {
+
+	if (s3ImageUrl.length < 1)
+		throw new Error(`The S3 Image URL is empty.`);
+
+	const imageContent = await retrieveImageAsJpg(s3ImageUrl);
+	const imageFormat = detectImageFormatFromUrl(s3ImageUrl);
+
+	const base64ImageUri = convertImageBufferToBase64ImageUri(imageContent, imageFormat);
+
+	const existingImagePackage =
+		new ImagePackage(
+			s3ImageUrl,
+			imageContent,
+			base64ImageUri,
+			imageFormat,
+			s3ImageUrl);
+
+	return existingImagePackage;
+}
+
+/**
+ * Gets an image from our Amazon S3 bucket, under a user-specific folder.
+ *
+ * @param s3ImageUrl - The S3 image URL whose contents is to be retrieved.
+ *
+ * @returns - Returns a promise that resolves to an ImagePackage object
+ *  if an image asset exists in our S3 bucket for the given user,
+ *  or NULL if no such asset exists.
+ */
+export async function getImageFromS3Ext(s3ImageUrl: string): Promise<ImagePackage|null> {
+
+	// Validate and parse s3ImageUrl
+	if (!s3ImageUrl || s3ImageUrl.trim().length === 0) {
+		console.error(`Invalid s3ImageUrl: '${s3ImageUrl}'`);
+		throw new Error("s3ImageUrl cannot be empty.");
+	}
+
+	let parsedUrl: URL;
+	try {
+		parsedUrl = new URL(s3ImageUrl);
+	} catch (err) {
+		console.error(`Invalid s3ImageUrl: '${s3ImageUrl}'`);
+		throw new Error("s3ImageUrl is not a valid URL.");
+	}
+
+	// Check that the protocol is HTTPS
+	if (parsedUrl.protocol !== "https:") {
+		console.error(`Invalid protocol for s3ImageUrl: '${s3ImageUrl}'`);
+		throw new Error("s3ImageUrl must use the HTTPS protocol.");
+	}
+
+	// If the URL already is in our S3 bucket, just return it.
+	if (parsedUrl.
+		hostname === "nft3d-public-mp3.s3.amazonaws.com") {
+
+		// Create a fully assembled image package object.
+		return buildExistingImagePackage(s3ImageUrl);
+	}
+
+	// Extract the S3 key from the S3 URL.
+	function extractS3Key(url: string) {
+		const regex = /https:\/\/[^/]+\/(livepeer-images\/.+)/;
+		const match = url.match(regex);
+		return match ? match[1] : null;
+	}
+
+	// Set up S3 client and bucket information
+	const s3 = new S3Client({ region: "us-east-1" }); // Adjust the region as needed
+	const bucketName = "nft3d-public-mp3";
+	const s3Key = extractS3Key(s3ImageUrl);
+
+	if (s3Key === null || s3Key === s3ImageUrl)
+		throw new Error(`The S3 image URL is invalid.  Could not extract S3 key:\n${s3ImageUrl}`);
+
+	try {
+		// Check if the object already exists in S3
+		try {
+			await s3.send(new HeadObjectCommand({
+				Bucket: bucketName,
+				Key: s3Key,
+			}));
+
+			// -------------------- BEGIN: EARLY RETURN STATEMENT ------------
+
+			// Create a fully assembled image package object.
+			return buildExistingImagePackage(s3ImageUrl);
+
+			// -------------------- END  : EARLY RETURN STATEMENT ------------
+		} catch (headError) {
+			// If the object doesn't exist, the HeadObjectCommand will throw an error (usually a 404).
+			// Continue with uploading the image.
+			if (headError.name !== "NotFound") {
+				console.warn(`No S3 object exists for the URL:\n${s3ImageUrl}\nDetails:\n${headError.message}`);
+			}
+		}
+
+		// Image not found with the given S3 URL.
+		return null;
+	} catch (error) {
+		console.error(`Error retrieving image from S3: ${error.message}`, { s3ImageUrl: s3ImageUrl });
+		throw new Error(`Error retrieving image from S3: ${error.message}`);
+	}
+}
+
+/**
+ * Uploads an image from Livepeer to Amazon S3 under a user-specific folder,
+ *  but this function converts the Livepeer PNG file to a JPG file first,
+ *  and stores the smaller JPG file to S3.
+ *
+ * NOTE: If the URL is already one of our S3 URLs, we just return it.
+ *
+ * @param userId - The ID of the user to whom the image belongs.
+ * @param livepeerImgOrS3Url - The Livepeer image URL or one of
+ *  our S3 URLs.
+ *
+ * @returns - Returns a promise that resolves to an ImagePackage object
+ *  instead of just the S3 URL like putLivepeerImageToS3AsJpg()
+ *  returns.
+ */
+export async function putLivepeerImageToS3AsJpgExt(userId: string, livepeerImgOrS3Url: string): Promise<ImagePackage> {
 	// Validate and trim userId
 	if (!userId || userId.trim().length === 0) {
 		console.error(`Invalid userId: '${userId}'`);
@@ -23,38 +160,211 @@ export async function putLivepeerImageToS3(userId: string, livepeerImgUrl: strin
 	}
 	const trimmedUserId = userId.trim();
 
-	// Validate and parse livepeerImgUrl
-	if (!livepeerImgUrl || livepeerImgUrl.trim().length === 0) {
-		console.error(`Invalid livepeerImgUrl: '${livepeerImgUrl}'`);
-		throw new Error("livepeerImgUrl cannot be empty.");
+	// Validate and parse livepeerImgOrS3Url
+	if (!livepeerImgOrS3Url || livepeerImgOrS3Url.trim().length === 0) {
+		console.error(`Invalid livepeerImgOrS3Url: '${livepeerImgOrS3Url}'`);
+		throw new Error("livepeerImgOrS3Url cannot be empty.");
 	}
 
 	let parsedUrl: URL;
 	try {
-		parsedUrl = new URL(livepeerImgUrl);
+		parsedUrl = new URL(livepeerImgOrS3Url);
 	} catch (err) {
-		console.error(`Invalid livepeerImgUrl: '${livepeerImgUrl}'`);
-		throw new Error("livepeerImgUrl is not a valid URL.");
+		console.error(`Invalid livepeerImgOrS3Url: '${livepeerImgOrS3Url}'`);
+		throw new Error("livepeerImgOrS3Url is not a valid URL.");
 	}
 
 	// Check that the protocol is HTTPS
 	if (parsedUrl.protocol !== "https:") {
-		console.error(`Invalid protocol for livepeerImgUrl: '${livepeerImgUrl}'`);
-		throw new Error("livepeerImgUrl must use the HTTPS protocol.");
+		console.error(`Invalid protocol for livepeerImgOrS3Url: '${livepeerImgOrS3Url}'`);
+		throw new Error("livepeerImgOrS3Url must use the HTTPS protocol.");
+	}
+
+	// If the URL is for our S3 bucket then that means its
+	//  from a previous successful file save, just return it.
+	if (parsedUrl.
+		hostname === "nft3d-public-mp3.s3.amazonaws.com") {
+		const existingImagePackage =
+			new ImagePackage(
+				'',
+				null,
+				'',
+				'',
+				livepeerImgOrS3Url);
+
+		console.log(`(putLivepeerImageToS3AsJpgExt) The image URL is already one of our S3 URLs:\n${livepeerImgOrS3Url}`)
+		return existingImagePackage;
 	}
 
 	// Check that the hostname is obj-store.livepeer.cloud
 	if (parsedUrl.hostname !== "obj-store.livepeer.cloud") {
-		console.error(`Invalid host for livepeerImgUrl: '${livepeerImgUrl}'`);
-		throw new Error("livepeerImgUrl must have the host 'obj-store.livepeer.cloud'.");
+		console.error(`Invalid host for livepeerImgOrS3Url: '${livepeerImgOrS3Url}'`);
+		throw new Error("livepeerImgOrS3Url must have the host 'obj-store.livepeer.cloud'.");
+	}
+
+	// Extract the image filename from the URL path
+	const pathParts = parsedUrl.pathname.split("/");
+	const filenamePng = pathParts.slice(-2).join("/"); // Last two parts of the path form the filename
+	if (!filenamePng) {
+		console.error(`Failed to extract filename from livepeerImgOrS3Url: '${livepeerImgOrS3Url}'`);
+		throw new Error("Invalid livepeerImgOrS3Url format, could not extract image filename.");
+	}
+
+	// Change the file name to a JPG extension.
+	const filenameJpg = replacePngWithJpg(filenamePng);
+
+	// Set up S3 client and bucket information
+	const s3 = new S3Client({ region: "us-east-1" }); // Adjust the region as needed
+	const bucketName = "nft3d-public-mp3";
+	const s3Key = `livepeer-images/${trimmedUserId}/${filenameJpg}`;
+
+	try {
+		// Check if the object already exists in S3
+		try {
+			await s3.send(new HeadObjectCommand({
+				Bucket: bucketName,
+				Key: s3Key,
+			}));
+
+			// If it exists, return the existing S3 URI
+			const existingS3Uri = `https://${bucketName}.s3.amazonaws.com/${s3Key}`;
+			console.log(`(putLivepeerImageToS3AsJpgExt) S3 object already exists: ${existingS3Uri}`);
+
+			// -------------------- BEGIN: EARLY RETURN STATEMENT ------------
+
+			const existingImagePackage =
+				new ImagePackage(
+					'',
+					null,
+					'',
+					'',
+					existingS3Uri);
+
+			return existingImagePackage;
+
+			// -------------------- END  : EARLY RETURN STATEMENT ------------
+		} catch (headError) {
+			// If the object doesn't exist, the HeadObjectCommand will throw an error (usually a 404).
+			// Continue with uploading the image.
+			if (headError.name !== "NotFound") {
+				console.error(`Error checking if S3 object exists: ${headError.message}`);
+				throw new Error(`Failed to check if S3 object exists: ${headError.message}`);
+			}
+		}
+
+		// Retrieve image content from Livepeer as a JPG.
+		const imageContent = await retrieveImageAsJpg(livepeerImgOrS3Url);
+
+		console.log(`(putLivepeerImageToS3AsJpgExt) Converted PNG to JPG.  Saving it to S3 now:\n${livepeerImgOrS3Url}`);
+
+		// Upload the image content to S3
+		await s3.send(new PutObjectCommand({
+			Bucket: bucketName,
+			Key: s3Key,
+			Body: imageContent,
+			ContentType: "image/jpeg",
+		}));
+
+		// Return the full S3 URI to the newly uploaded asset in an ImagePackage
+		// object.
+		const s3Uri = `https://${bucketName}.s3.amazonaws.com/${s3Key}`;
+
+		console.log(`(putLivepeerImageToS3AsJpgExt) JPG saved.  S3 URL is:\n${s3Uri}`);
+
+		const newImagePackage =
+			new ImagePackage(
+				livepeerImgOrS3Url,
+				imageContent,
+				'',
+				'',
+				s3Uri
+			);
+
+		return newImagePackage;
+	} catch (error) {
+		console.error(`Error uploading image to S3: ${error.message}`, { userId, livepeerImgUrl: livepeerImgOrS3Url });
+		throw new Error(`Failed to upload image to S3: ${error.message}`);
+	}
+}
+
+/**
+ * Uploads an image from Livepeer to Amazon S3 under a user-specific folder,
+ *  but this function converts the Livepeer PNG file to a JPG file first,
+ *  and stores the smaller JPG file to S3.
+ *
+ * @param {string} userId - The ID of the user to whom the image belongs.
+ * @param {string} livepeerImgUrl - The Livepeer image URL.
+ *
+ * @returns {Promise<string>} - The full S3 URI to the new asset or existing object.
+ */
+export async function putLivepeerImageToS3AsJpg(userId: string, livepeerImgUrl: string): Promise<string> {
+	const result = await putLivepeerImageToS3AsJpgExt(userId, livepeerImgUrl);
+
+	return result.urlToSrcImage;
+}
+
+
+/**
+ * Uploads an image from Livepeer to Amazon S3 under a user-specific folder.
+ *
+ *  This is the original call which we have left intact instead of
+ *   making a call to putLivepeerImageToS3AsJpgExt().
+ *
+ * @param {string} userId - The ID of the user to whom the image belongs.
+ * @param {string} livepeerImgOrS3Url - The Livepeer image URL or one
+ *  of our S3 URLs.
+ *
+ * @returns {Promise<string>} - The full S3 URI to the new asset or
+ *  existing object.
+ */
+export async function putLivepeerImageToS3(
+		userId: string,
+		livepeerImgOrS3Url: string): Promise<string> {
+	// Validate and trim userId
+	if (!userId || userId.trim().length === 0) {
+		console.error(`Invalid userId: '${userId}'`);
+		throw new Error("userId cannot be empty.");
+	}
+	const trimmedUserId = userId.trim();
+
+	// Validate and parse livepeerImgOrS3Url
+	if (!livepeerImgOrS3Url || livepeerImgOrS3Url.trim().length === 0) {
+		console.error(`Invalid livepeerImgUrl: '${livepeerImgOrS3Url}'`);
+		throw new Error("livepeerImgOrS3Url cannot be empty.");
+	}
+
+	let parsedUrl: URL;
+	try {
+		parsedUrl = new URL(livepeerImgOrS3Url);
+	} catch (err) {
+		console.error(`Invalid livepeerImgUrl: '${livepeerImgOrS3Url}'`);
+		throw new Error("livepeerImgOrS3Url is not a valid URL.");
+	}
+
+	// Check that the protocol is HTTPS
+	if (parsedUrl.protocol !== "https:") {
+		console.error(`Invalid protocol for livepeerImgUrl: '${livepeerImgOrS3Url}'`);
+		throw new Error("livepeerImgOrS3Url must use the HTTPS protocol.");
+	}
+
+	// If the URL already is in our S3 bucket, just return it.
+	if (parsedUrl.
+		hostname === "nft3d-public-mp3.s3.amazonaws.com") {
+		return livepeerImgOrS3Url;
+	}
+
+	// Check that the hostname is obj-store.livepeer.cloud
+	if (parsedUrl.hostname !== "obj-store.livepeer.cloud") {
+		console.error(`Invalid host for livepeerImgUrl: '${livepeerImgOrS3Url}'`);
+		throw new Error("livepeerImgOrS3Url must have the host 'obj-store.livepeer.cloud'.");
 	}
 
 	// Extract the image filename from the URL path
 	const pathParts = parsedUrl.pathname.split("/");
 	const filename = pathParts.slice(-2).join("/"); // Last two parts of the path form the filename
 	if (!filename) {
-		console.error(`Failed to extract filename from livepeerImgUrl: '${livepeerImgUrl}'`);
-		throw new Error("Invalid livepeerImgUrl format, could not extract image filename.");
+		console.error(`Failed to extract filename from livepeerImgUrl: '${livepeerImgOrS3Url}'`);
+		throw new Error("Invalid livepeerImgOrS3Url format, could not extract image filename.");
 	}
 
 	// Set up S3 client and bucket information
@@ -72,7 +382,7 @@ export async function putLivepeerImageToS3(userId: string, livepeerImgUrl: strin
 
 			// If it exists, return the existing S3 URI
 			const existingS3Uri = `https://${bucketName}.s3.amazonaws.com/${s3Key}`;
-			console.log(`S3 object already exists: ${existingS3Uri}`);
+			console.log(`(putLivepeerImageToS3) S3 object already exists: ${existingS3Uri}`);
 
 			// -------------------- BEGIN: EARLY RETURN STATEMENT ------------
 
@@ -89,7 +399,7 @@ export async function putLivepeerImageToS3(userId: string, livepeerImgUrl: strin
 		}
 
 		// Retrieve image content from Livepeer
-		const response = await axios.get(livepeerImgUrl, { responseType: "arraybuffer" });
+		const response = await axios.get(livepeerImgOrS3Url, { responseType: "arraybuffer" });
 		const imageContent = response.data;
 
 		// Upload the image content to S3
@@ -105,7 +415,7 @@ export async function putLivepeerImageToS3(userId: string, livepeerImgUrl: strin
 		return s3Uri;
 
 	} catch (error) {
-		console.error(`Error uploading image to S3: ${error.message}`, { userId, livepeerImgUrl });
+		console.error(`Error uploading image to S3: ${error.message}`, { userId, livepeerImgUrl: livepeerImgOrS3Url });
 		throw new Error(`Failed to upload image to S3: ${error.message}`);
 	}
 }
@@ -179,7 +489,7 @@ export function buildImageShareForTwitterUrl(
 	//  metadata.
 
 	// Base URL for your Fastify route that serves the Twitter Card metadata
-	let twitterCardHostOurs = process.env.TWITTER_CARD_BASE_URL || 'https://plasticeducator.com';
+	let twitterCardHostOurs = getEnvironmentVariableByName("TWITTER_CARD_BASE_URL") || 'https://plasticeducator.com';
 
 	// Validate, trim, and encode hashtags (comma-separated)
 	const hashtagsParam = aryHashTags.length > 0

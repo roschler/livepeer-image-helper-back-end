@@ -76,21 +76,33 @@ export const generateImages_storytime = async (prompt: string): Promise<any> => 
  * Make an image generation request against the Livepeer service
  *  for the Chatbot app.
  *
+ * NOTE: This function uses an exponential back-off and retry
+ *  algorithm if the Livepeer network is busy.  (i.e. - It
+ *  returns a 503/Service Unavailable error).
+ *
  * @param prompt - The prompt to pass to the image generator model.
  * @param negative_prompt - The negative prompt to pass to the image generator model.
- * @param chatStateObj - The current state of the
- *  chat session.
+ * @param chatStateObj - The current state of the chat session.
+ * @param funcStateMessage - Optional function to receive state messages, or null.
+ * @param maxRetries - Maximum retry count; should be a positive integer or 0.
  *
- * @return {Promise<*>}
+ * @return {Promise<string[]>} - Array of image URLs.
  */
-export const generateImages_chat_bot =
-	async (
-		prompt: string,
-		negative_prompt: string,
-		chatStateObj: CurrentChatState_image_assistant): Promise<any> => {
+export const generateImages_chat_bot = async (
+	prompt: string,
+	negative_prompt: string,
+	chatStateObj: CurrentChatState_image_assistant,
+	funcStateMessage: ((stateMessage: string) => void) | null,
+	maxRetries: number
+): Promise<string[]> => {
 
-	let urls
+	// Validate maxRetries parameter
+	if (typeof maxRetries !== "number" || maxRetries < 0) {
+		throw new Error("maxRetries must be a positive integer or 0.");
+	}
 
+	let urls: string[]
+		= [];
 	const body = {
 		prompt: prompt,
 		model_id: chatStateObj.model_id,
@@ -100,46 +112,69 @@ export const generateImages_chat_bot =
 		width: image_size,
 		height: image_size,
 		num_images_per_prompt: num_images,
+	};
+
+	let attempt = 0;
+
+	// Retry loop with exponential back-off
+	while (attempt <= maxRetries) {
+		try {
+			const request = await _request({
+				...livePeerRequestOptions,
+				body: JSON.stringify(body),
+			});
+
+			// Check if request succeeded
+			if (request.status === StatusCodes.OK) {
+				const { images } = await request.json();
+				if (!images || images.length === 0) {
+					throw new Error("No images returned from Livepeer");
+				}
+				urls = images.map((image: LivepeerImage) => image.url);
+				return urls; // Exit if successful
+			} else if (request.status === StatusCodes.SERVICE_UNAVAILABLE) {
+				// Handle 503 Service Unavailable with exponential back-off
+				attempt += 1;
+				if (attempt > maxRetries) {
+					throw new Error(
+						"Livepeer network is under heavy load. Please try again later."
+					);
+				}
+
+				// Calculate exponential back-off delay (e.g., 1s, 2s, 4s, ...)
+				const numSecondsBeforeRetry = Math.pow(2, attempt);
+
+				// Notify state message if funcStateMessage is provided
+				if (funcStateMessage && attempt > 1) {
+					funcStateMessage(
+						`Livepeer is busy. Retrying image request in ${numSecondsBeforeRetry} seconds...`
+					);
+				}
+
+				// Wait for the calculated back-off time before retrying
+				await new Promise((resolve) =>
+					setTimeout(resolve, numSecondsBeforeRetry * 1000)
+				);
+			} else {
+				// If it's another error, throw it directly
+				const errMsg = `(generateImages_chat_bot) The image request failed with status code(${request.status}) and status text: ${request.statusText}\nService URL: ${request.url}`;
+				console.error(errMsg);
+				throw new Error(errMsg);
+			}
+		} catch (error) {
+			// Log error on last attempt if retries are exhausted
+			if (attempt >= maxRetries) {
+				console.error(
+					"Error after maximum retries:", error
+				);
+				throw error;
+			}
+			attempt += 1;
+		}
 	}
 
-	// Test SG161222/RealVisXL_V4.0_Lightning model.
-	// body.model_id = enumImageGenerationModelId.REALVIS_LIGHTNING
-
-	const request = await _request({
-		...livePeerRequestOptions,
-		body: JSON.stringify(body),
-	})
-
-	if (request.status !== StatusCodes.OK) {
-		/**
-		 * Remember, the Livepeer network returns a 503 service
-		 *  unavailable error if you pass in an invalid model ID.
-		 *  It does not mean (necessarily) that Livepeer is down.
-		 */
-		// The request failed.  Show the status text and throw an error.
-		const errMsg =
-			`(generateImages_chat_bot) The image request failed with status code(${request.status}) and this status text: ${request.statusText}\nService URL: ${request.url}`
-
-		console.error(errMsg)
-
-		throw new Error(errMsg);
-	}
-
-	const { images } = await request.json()
-		if (!images || images.length === 0) {
-			throw new Error("No images returned from Livepeer")
-	}
-
-	try {
-		urls = images.map((image: LivepeerImage) => {
-			return image.url
-		})
-	} catch (e) {
-		console.error("Error parsing image URLs", e)
-	}
-	return urls
-}
-
+	return urls; // Empty array if no successful response and maxRetries exhausted
+};
 
 /**
  * Create a request object for our use.

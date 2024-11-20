@@ -1,14 +1,12 @@
-import 'dotenv/config';
-
 import fastify, { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fastifyStatic, { FastifyStaticOptions } from '@fastify/static';
-// import websock from './websock-storytime';
 import websock from './websock-chat-bot';
 
 import { readFileSync } from 'fs';
 import path from 'node:path';
 import { readTwitterCardDetails } from "./twitter/twitter-helper-functions"
-import { TwitterCardDetails } from "./system/types"
+import { fileURLToPath } from "node:url"
+import { isDevEnv } from "./common-routines"
 
 const port = Number(process.env.BACKEND_SERVER_PORT ?? 3001);
 const host = '0.0.0.0';
@@ -18,6 +16,8 @@ const versionNum = '1.0';
 const CONSOLE_CATEGORY = 'index page';
 
 let app: FastifyInstance;
+
+// -------------------- BEGIN: SERVER INITIALIZATION ------------
 
 // Initialize Fastify instance
 if (process.env.NODE_ENV !== 'production') {
@@ -36,13 +36,22 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // TODO: Change this to an environment variable.
-const staticPath = '../frontend-static';
-console.log('Current working directory at time of static path configuration:', process.cwd());
-console.log('Resolved static file path:', path.join(__dirname, staticPath));
+const subStaticPath =
+	isDevEnv()
+		? 	'frontend-static'
+		: 	'frontend-static';
+
+const staticPath =
+	path.resolve(subStaticPath);
+
+console.log('\n<<<<< Current working directory at time of static path configuration:', process.cwd());
+console.log(` >>>>> Selected static file path:
+${staticPath}\n`);
 
 // Serve static files from the correct directory for the front-end
 const staticOptions: FastifyStaticOptions = {
-	root: path.join(__dirname, staticPath),
+	// root: path.join('.', staticPath),
+	root: staticPath,
 	// TODO: Change these to environment variables.
 	prefix: '/nft-supreme/', // Serve static files from the root URL path
 	constraints: { host: 'plasticeducator.com' },
@@ -212,25 +221,25 @@ app.get<{ Params: TwitterCardParams; Query: TwitterCardQuery }>('/twitter-card/:
 		 */
 
 		const html = `
-			<!DOCTYPE html>
-			<html>
-			<head>
-				<meta content="text/html; charset=UTF-8" name="Content-Type" />
-				<meta name="twitter:card" content="summary_large_image">
-				<meta name="twitter:title" content="${twitterCardDetails.twitter_card_title}">
-				<meta name="twitter:site" content="${theSite}">
-				<meta name="twitter:description" content="${twitterCardDetails.twitter_card_description}">
-				<meta name="twitter:image" content="${twitterCardDetails.url_to_image}">
-				<meta name="twitter:image:width" content="${twitterCardDetails.dimensions.width}">
-				<meta name="twitter:image:height" content="${twitterCardDetails.dimensions.height}">
-				<meta name="twitter:image:alt" content="${twitterCardDetails.twitter_card_description}">
-				<meta name="twitter:url" content="${twitterCardDetails.url_to_image}">
-			</head>
-			<body>
-				<p>This page contains metadata for Twitter to display a rich preview of the image with ID: ${imageId}.</p>
-			</body>
-			</html>
-			`;
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<meta content="text/html; charset=UTF-8" name="Content-Type" />
+			<meta name="twitter:card" content="summary_large_image">
+			<meta name="twitter:title" content="${twitterCardDetails.twitter_card_title}">
+			<meta name="twitter:site" content="${theSite}">
+			<meta name="twitter:description" content="${twitterCardDetails.twitter_card_description}">
+			<meta name="twitter:image" content="${twitterCardDetails.url_to_image}">
+			<meta name="twitter:image:width" content="${twitterCardDetails.dimensions.width}">
+			<meta name="twitter:image:height" content="${twitterCardDetails.dimensions.height}">
+			<meta name="twitter:image:alt" content="${twitterCardDetails.twitter_card_description}">
+			<meta name="twitter:url" content="${twitterCardDetails.url_to_image}">
+		</head>
+		<body>
+			<p>This page contains metadata for Twitter to display a rich preview of the image with ID: ${imageId}.</p>
+		</body>
+		</html>
+		`;
 
 
 		console.log(`HTML returned to user agent:\n${userAgent}\n`)
@@ -269,3 +278,6 @@ app.listen({ port, host }, (err, address) => {
 	app.log.info(`${appName} version ${versionNum} backend server listening on ${address}`);
 	console.log(`${appName} backend server listening for websocket traffic on ${host}:${port}`);
 });
+
+
+// -------------------- END  : SERVER INITIALIZATION ------------

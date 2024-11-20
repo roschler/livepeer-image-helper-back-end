@@ -1,13 +1,15 @@
-import { chatCompletionImmediate } from "./openai-common"
-import { OpenAIParams_text_completion } from "./openai-parameter-objects"
-import { getCurrentOrAncestorPathForSubDirOrDie, readTextFile } from "./common-routines"
+import { getCurrentOrAncestorPathForSubDirOrDie, readTextFile }
+	from "./common-routines"
 import path from "node:path"
 import fs from "fs"
 import {
 	enumIntentDetectorId_image_assistant,
 	enumIntentDetectorId_license_assistant
 } from "./intents/enum-intents"
-import { ChatHistory, CurrentChatState_license_assistant, StringOrNull } from "./chat-volleys/chat-volleys"
+import { ChatHistory, CurrentChatState_license_assistant } from "./chat-volleys/chat-volleys"
+import { DEFAULT_SAMBA_NOVA_TEXT_COMPLETION_MODEL_ID, sambaNovaChatCompletionImmediate } from "./samba-nova-common"
+import { SambaNovaParams_text_completion, SambaNovaParams_vision_recognition } from "./samba-nova-parameter-objects"
+import { StringOrNull } from "./system/types"
 
 const CONSOLE_CATEGORY = 'open-ai-chat-bot'
 
@@ -32,29 +34,39 @@ export interface UserAndSystemPrompt {
 //  the user create better generative AI images).
 export const g_TextCompletionParams =
 	// Chatbot app wants text completions streamed to it.
-	new OpenAIParams_text_completion();
+	new SambaNovaParams_text_completion();
+
+export const TEMPERATURE_ACCURACY_FIRST = 0.1;
+
+export const MAX_TEMPERATURE = 1.0;
+
+// The parameters for the image generation LLM.
+export const g_TextCompletionParamsImageGeneration =
+	new SambaNovaParams_text_completion({
+		model_param_val: DEFAULT_SAMBA_NOVA_TEXT_COMPLETION_MODEL_ID,
+		temperature_param_val: TEMPERATURE_ACCURACY_FIRST
+	})
 
 // The text completion parameters object for intent detector
 //  calls.
 export const g_TextCompletionParamsForIntentDetector =
-	new OpenAIParams_text_completion({
-		// Getting 400 unsupported value errors for o1-mini
-		// model_param_val: 'o1-mini'
-		model_param_val: 'gpt-4-turbo'
-		// model_param_val: 'gpt-4'
+	new SambaNovaParams_text_completion({
+		model_param_val: DEFAULT_SAMBA_NOVA_TEXT_COMPLETION_MODEL_ID
 	})
 
 // The text completion parameters object for making calls with
 //  the o1-mini model, the fast reasoning model.
 export const g_TextCompletionParamsLicenseAssistant =
-	new OpenAIParams_text_completion({
-		// Getting 400 unsupported value errors for o1-mini
-		// model_param_val: 'o1-mini'
-		// model_param_val: 'gpt-4-turbo'
-		model_param_val: 'gpt-4',
+	new SambaNovaParams_text_completion({
+		model_param_val: DEFAULT_SAMBA_NOVA_TEXT_COMPLETION_MODEL_ID,
 		temperature_param_val: 0.4
 	})
 
+// The parameter object for vision recognition  calls, initialized
+//  to the default starting values.
+export const g_VisionRecognitionParams =
+	// Chatbot app wants text completions streamed to it.
+	new SambaNovaParams_vision_recognition();
 
 // -------------------- END  : TEXT COMPLETION PARAMETER OBJECTS ------------
 
@@ -197,6 +209,13 @@ g_AryIntentPrompts_image_assistant[enumIntentDetectorId_image_assistant.USER_COM
 		prompt_text: ""
 	};
 
+// >>>>> INTENT: USER_INPUT_REQUEST_NATURE
+g_AryIntentPrompts_image_assistant[enumIntentDetectorId_image_assistant.NATURE_OF_USER_REQUEST] =
+	{
+		primary_resource_name: "intent-detector-new-image-description-or-current-image-adjustment.txt",
+		prompt_text: ""
+	};
+
 // We iterate over all the intent values known to the system
 //  at this time to make sure that every one of them has a
 //  corresponding prompt resource, and then we load that into
@@ -289,10 +308,10 @@ console.info(CONSOLE_CATEGORY, `All image assistant intents initialized.`)
  * Execute a text completion call for the desired intent
  *  using the latest input from the user.
  *
- * @param {String} intentId - The ID of the desired intent.
- * @param {OpenAIParams_text_completion} textCompletionParams -
+ * @param intentId - The ID of the desired intent.
+ * @param textCompletionParams -
  *  A valid OpenAI text completion parameters object.
- * @param {String} userInput - The latest input from the user.
+ * @param userInput - The latest input from the user.
  *
  * @returns {Promise<
  * 	{
@@ -310,7 +329,7 @@ console.info(CONSOLE_CATEGORY, `All image assistant intents initialized.`)
  */
 export async function executeIntentCompletion(
 		intentId: string,
-		textCompletionParams: OpenAIParams_text_completion,
+		textCompletionParams: SambaNovaParams_text_completion,
 		userInput: string) {
 
 	const trimmedUserInput: string = userInput.trim();
@@ -323,26 +342,27 @@ export async function executeIntentCompletion(
 	if (!intentPromptText  || intentPromptText.length < 1)
 		throw new Error(`The intent prompt text is empty`);
 
-	return await chatCompletionImmediate(
+	return await sambaNovaChatCompletionImmediate(
 		intentId,
 		intentPromptText,
 		userInput,
 		textCompletionParams,
-		true)
+		true,
+		null)
 }
 
 /**
  * Processes multiple intent completions in parallel.
  *
- * @param {string[]} aryIntentIds - An array of intent IDs to be processed.
- * @param {OpenAIParams_text_completion} textCompletionsParams - The parameters to be passed to executeIntentCompletion.
- * @param {string} userInput - The user input that is required for the execution of intents.
+ * @param aryIntentIds - An array of intent IDs to be processed.
+ * @param textCompletionsParams - The parameters to be passed to executeIntentCompletion.
+ * @param userInput - The user input that is required for the execution of intents.
  *
  * @returns {Promise<Array<{ is_error: boolean, intent_id: string, result_or_error: any }>>} - Returns an array of objects where each object contains error or success status, the intentId, and the result or error object from the respective execution.
  */
 export async function processAllIntents(
 	aryIntentIds: string[],
-	textCompletionsParams: OpenAIParams_text_completion,
+	textCompletionsParams: SambaNovaParams_text_completion,
 	userInput: string
 ): Promise<Array<{ is_error: boolean, intent_id: string, result_or_error: any }>> {
 
@@ -402,7 +422,7 @@ export function showIntentResultObjects(
 
 		if (obj.is_error) {
 			// Pretty-print the entire result_or_error if it's an error
-			console.log('Error:', JSON.stringify(obj.result_or_error, null, 2));
+			console.log('Error:', obj.result_or_error.message);
 		} else {
 			// Show only specific fields if no error
 			const { intent_detector_id, text_response, json_response } = obj.result_or_error;
@@ -449,6 +469,46 @@ export const g_ExtendedWrongContentPrompt =
 export const g_ImageGenPromptToTweetPrompt =
 	readImageGenerationSubPromptOrDie('image-generation-prompt-to-tweet.txt')
 
+// Dedicated prompt for enhancing a user's image generation prompt with some assumptions
+//  about expected properties of the objects described in the prompt.
+export const g_ObjectShapeConsistencyPrompt =
+	readImageGenerationSubPromptOrDie('system-prompt-for-object-shape-assumptions.txt');
+
+// Dedicated image refinement prompt that takes a description of
+//  a desired image and compares it to a description of the image
+//  generated by vision recognition, and outputs a suggested feedback
+//  or complaint similar to what a user might provide in response
+//  to the variances or problems with the image..
+export const g_ImageRefinementPrompt =
+	readImageGenerationSubPromptOrDie('system-prompt-for-image-refinement.txt');
+
+// Vision recognition system prompt for describing an image.
+export const g_DescribeImagePrompt =
+	readImageGenerationSubPromptOrDie('system-prompt-image-describe.txt');
+
+// Vision recognition system prompt for describing the differences between
+//  an image and a given image description.
+export const g_ImageDescriptionVsActualImage =
+	readImageGenerationSubPromptOrDie('system-prompt-image-differences-or-abnormalities.txt');
+
+// This is the system prompt for taking an image discrepancy
+//  report and turning it into suggested user feedback for an
+//  auto image refinement operation.
+export const g_SuggestedUserFeedbackPrompt =
+	readImageGenerationSubPromptOrDie('system-prompt-for-suggested-user-feedback.txt');
+
+// This is the system prompt for the text completion call
+//  to correct scene element logic changes introduced by
+//  the suggested user feedback operation.
+export const g_FixSuggestedUserFeedbackPrompt =
+	readImageGenerationSubPromptOrDie('system-prompt-correct-suggested-feedback-hallucinations.txt');
+
+// This is the system prompt for the text completion call
+//  that teases out the fundamental scene logic assertions
+//  embedded in a user's scene description prompt.
+export const g_DecomposeSentenceLogicPrompt =
+	readImageGenerationSubPromptOrDie('system-prompt-decompose-scene-logic.txt');
+
 // -------------------- END  : LOAD PROMPT BUILDER TEXT FILES ------------
 
 /**
@@ -465,16 +525,16 @@ export const g_ImageGenPromptToTweetPrompt =
  *  start a completely new image, so we won't pass in the
  *  last image generation prompt to the image prompt LLM.
  *  Otherwise, we consider this the continuation of an
- *  existing image session and we will pass it.
+ *  existing image session.
  *
- * @return Returns the system prompt to use in the
- *  upcoming text completion call.
+ * @returns - Returns the user prompt and system prompt to
+ *  use in the upcoming text completion call.
  */
 export function buildChatBotSystemPrompt_image_assistant(
 		userPrompt: string,
 		wrongContentText: string | null,
 		chatHistoryObj: ChatHistory,
-		bIsStartNewImage: boolean): string {
+		bIsStartNewImage: boolean): UserAndSystemPrompt {
 	// IMPORTANT!: This variable name must match the one used
 	//  in the system prompt text file!
 	const useUserPrompt = userPrompt.trim();
@@ -486,15 +546,7 @@ export function buildChatBotSystemPrompt_image_assistant(
 
 	// Extract the most recent chat history and create
 	//  a block of plain text from it.
-	//
-	// IMPORTANT!: This variable name must match the one used
-	//  in the system prompt text file!
-	// const chatHistorySummaryAsText =
-	//	chatHistoryObj.buildChatHistoryPrompt()
-
-	// IMPORTANT!: This variable name must match the one used
-	//  in the system prompt text file!
-	let previousImageGenerationPromptOrNothing = ''
+	let previousImageGenerationPromptOrNothing = '';
 
 	if (!bIsStartNewImage) {
 		// Get the last chat volley.
@@ -506,13 +558,13 @@ export function buildChatBotSystemPrompt_image_assistant(
 			//  modify the existing content.
 			previousImageGenerationPromptOrNothing =
 				`
-					Here is the previous image generation prompt you created:\n
+					Please help me with this image generation prompt:\n
 					${lastChatVolleyObj.prompt}\n
 				`
 			if (lastChatVolleyObj.negative_prompt.length > 0) {
 				previousImageGenerationPromptOrNothing +=
 					`
-							Here is the previous negative prompt you created:\n
+							And also help me with this text I am using as the negative prompt to the stable diffusion model:\n
 							${lastChatVolleyObj.negative_prompt}
 						`
 			}
@@ -529,25 +581,47 @@ export function buildChatBotSystemPrompt_image_assistant(
 
 				previousImageGenerationPromptOrNothing +=
 					`
-					Rewrite this image generation prompt so that the subject in the user's complaint, "${wrongContentText}", becomes the focus of the scene described by your revised image prompt.
+					Here is the biggest complaint I have with the image:\n<complaint>${wrongContentText}</complaint>\n Rewrite my prompt so that the scene element or issue mentioned in the complaint is the first image element mentioned in the revised prompt you create for me.  Make the complaint element the main focus of the scene.  However, make sure you do not leave out any of the other scene elements or directions mentioned in my prompt.
 					`
 				// -------------------- END  : REWRITE AROUND WRONG CONTENT ------------
 			}
 		}
 	}
 
-	const adornedUserPrompt =
-		`Here is the current user input.  Use it to guide the improvements to your revised prompt:\n${useUserPrompt}\n`
+	let adornedUserPrompt = '';
 
-	// Build the full prompt from our sub-prompts.
-	const arySubPrompts = [];
+	if (previousImageGenerationPromptOrNothing.length > 0) {
+		// This is not the first prompt but a continuation of
+		//  a current image generation session.
+		//
+		//	// Build the full adorned user prompt.
+		adornedUserPrompt += previousImageGenerationPromptOrNothing;
+
+		// If we had any "wrong content" text, we need to remove
+		// it from the current user input.
+		const fixedUserPrompt =
+			wrongContentText
+				? useUserPrompt.replace(new RegExp(wrongContentText, "i"), "").trim()
+				: useUserPrompt;
+
+		if (fixedUserPrompt.length > 5)
+			// Append the current user input, without the wrong
+			//  content text..
+			adornedUserPrompt += 'Also. ' + useUserPrompt;
+	} else {
+		// This is first prompt for a new image generation session.
+		//  Just use the current user input.
+		adornedUserPrompt = useUserPrompt;
+	}
 
 	// Not using this prompt for now.  Needs curation.
-	// arySubPrompts.push(g_TipsFromDiscordMembersPrompt)
+	// arySubPromptsForUserPrompt.push(g_TipsFromDiscordMembersPrompt)
 
 	// Main image generation system prompt.  Use it as a
 	//  template string so that we can insert the needed values
-	//  in the right place.
+	//  in the right place.  Note, the current generation of
+	//  the system prompt for image generation has a template
+	//  string variable reference to: g_MainImageGenerationFaqPrompt
 
 	// NOTE: Because they are only found in the system
 	//  prompt eval string, the IDE will incorrectly
@@ -555,15 +629,19 @@ export function buildChatBotSystemPrompt_image_assistant(
 	const evalStrMainSystemPrompt =
 		'`' + g_MainImageGenerationSystemPrompt + '`';
 
+	// Apparently we need to reference g_MainImageGenerationFaqPrompt
+	//  or the global variable reference will not be available to the
+	//  eval() function.
+	const mainImageGenerationFaqPrompt = g_MainImageGenerationFaqPrompt;
+
 	const evaluatedSystemPrompt =
 		eval(evalStrMainSystemPrompt)
 
-	arySubPrompts.push(evaluatedSystemPrompt)
+	const userPromptAndSystemPromptObj = {
+		userPrompt: adornedUserPrompt,
+		systemPrompt: evaluatedSystemPrompt }
 
-	// Main tips document.
-	arySubPrompts.push(g_MainImageGenerationFaqPrompt)
-
-	return arySubPrompts.join(' ')
+	return userPromptAndSystemPromptObj;
 }
 
 /**

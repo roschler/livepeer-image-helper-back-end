@@ -1,0 +1,15 @@
+Compare the following two descriptions:
+
+Scene Description (intended content as per the user prompt):
+${enhancedPrompt}
+
+Image Description (actual content observed in the image):
+${imageDescription}
+
+Determine whether the Image Description matches the Scene Description. If there are discrepancies, please:
+
+List the objects that are mentioned in the Scene Description but are not present in the Image Description.
+List the objects that are present in both descriptions but have different attributes, specifying the differences.
+List the activities or actions that are present in the Scene Description that are not depicted in the image.
+
+If the image is described as containing words or text, and the words or text is misspelled, then do not report those words or text as missing from the image.  Instead, just simply state that there are misspelled words in the image along with the other discrepancies you found.

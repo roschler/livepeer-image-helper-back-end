@@ -119,6 +119,7 @@ export interface TextCompletionResponse {
 export interface ImageGeneratorLlmJsonResponse
 {
 	"prompt": string,
+	"prompt_summary": string,
 	"negative_prompt": string,
 	"user_input_has_complaints": boolean
 }

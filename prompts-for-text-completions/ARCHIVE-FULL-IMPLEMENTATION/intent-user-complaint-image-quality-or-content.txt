@@ -25,13 +25,10 @@ If the user indicates that there are issues with text in the image, such as miss
 
 {"complaint_type": "problems_with_text", "complaint_text: <text you matched">}
 
+Look for explicit complaints about the image from the user.  However, make sure it is a complaint and not simply a request to modify the image in some incremental way.  Complaints will usually have language indicating they had made a previous request that was not satisfied in the current image and therefore will have language with verbs in the past tense like: "I said", I wanted", "I expected".  If you detect a phrase like that, then output this JSON object:
+
+{"complaint_type": "wrong_content", "complaint_text: <text you matched">}
+
 If the user indicates that they want the image to be more exotic, creative, or have more variation or if they use any other phrase with a similar meaning such, as but not limited to: "I want something wild", "Can you make it more creative?", "It's a little boring", "I want you to really express yourself", "Try something really different" then output the JSON object:
 
 {"complaint_type": "boring", "complaint_text: <text you matched">}
-
-
-If the user indicates they want a new image, that does not mean that the image is boring.  It means that they are happy with the current image and want to work on a new image.  If they indicate they want a new image, output the JSON object:
-
-If user indicates that the image is not sharp, lacks detail, is out of focus, or uses any other phrase of similar meaning, then output this JSON object, with complaint_text set to the text you matched:
-
-{"complaint_type": "new_image", "complaint_text: <text you matched">}

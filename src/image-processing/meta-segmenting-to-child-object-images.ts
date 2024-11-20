@@ -5,7 +5,7 @@
 import sharp from 'sharp';
 // import * as components from "../components/index.js";
 import { Livepeer } from "livepeer"
-// import { BodyGenSegmentAnything2$inboundSchema } from "livepeer/models/components"
+// import { BodyGenSegmentAnything2$inboundSchema } from "livepeer/models/compone"
 import { openAsBlob } from "node:fs"
 import { GenSegmentAnything2Response } from "livepeer/models/operations"
 import fs from "fs"

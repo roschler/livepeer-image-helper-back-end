@@ -1,4 +1,3 @@
-import { UserBlockchainPresence } from "../blockchain/user-blockchain-presence"
 import { Hex } from "viem"
 
 /**
@@ -247,3 +246,7 @@ export type Genre =
 	| "apocalypse"
 	| "hollywood"
 	| "singularity"
+
+export type BooleanOrNull = boolean | null;
+export type NumberOrNull = number | null;
+export type StringOrNull = string | null;
