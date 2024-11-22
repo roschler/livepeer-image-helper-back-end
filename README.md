@@ -1,5 +1,5 @@
 # livepeer-image-helper-back-end
-This is the repository for the server side code for Livepeer Image Entry, contest entry into the SambaNova Lightning Fast IA hackathon.  The app's primary feature is S.C.A.R.P., which stands for Self-Correcting Auto-Refined Prompts. It leverages SambaNova's Llama text and video models to automatically enhance stable diffusion image generation prompts, resolving issues with generated images and aligning the content more closely with the user's desired outcome. This process eliminates the need for users to have prior knowledge of stable diffusion models or the complex parameters associated with them.
+This is the repository for the server side code for Livepeer Image Entry, our contest entry into the SambaNova Lightning Fast IA hackathon.  The app's primary feature is S.C.A.R.P., which stands for Self-Correcting Auto-Refined Prompts. It leverages SambaNova's Llama text and video models to automatically enhance stable diffusion image generation prompts, resolving issues with generated images and aligning the content more closely with the user's desired outcome. This process eliminates the need for users to have prior knowledge of stable diffusion models or the complex parameters associated with them.
 
 You can find the code for the front-end repository here:
 
